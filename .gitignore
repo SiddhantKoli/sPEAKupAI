@@ -1,0 +1,22 @@
+﻿# Ignore model artifacts and large files
+models/
+**/model.safetensors
+**/*.safetensors
+
+# Local env and credentials
+.env
+.env.*
+.env.local
+
+# Python/IDE artifacts
+__pycache__/
+*.pyc
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
