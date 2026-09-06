@@ -1071,24 +1071,7 @@ ul {
   }
 
   .mobile-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 18px;
-    background: var(--paper);
-    border-bottom: 3px solid var(--ink);
-    box-shadow: 0 4px 0 var(--ink);
-  }
-
-  .mobile-header .brand-logo {
-    height: 34px;
-    width: 34px;
-    padding: 4px;
+    display: none;
   }
 
   .mobile-tabs {
@@ -1098,7 +1081,7 @@ ul {
     bottom: 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
     padding: 8px;
     background: var(--paper);
@@ -1110,9 +1093,10 @@ ul {
     min-height: 42px;
     place-items: center;
     border: 2px solid transparent;
-    font-size: 0.78rem;
+    font-size: 0.73rem;
     font-weight: 900;
     text-transform: uppercase;
+    padding: 4px;
   }
 
   .mobile-tabs a.active {
@@ -1125,7 +1109,7 @@ ul {
     margin-left: 0;
     height: 100vh;
     height: 100dvh;
-    padding: 100px 18px 66px;
+    padding: 18px 18px 76px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -1211,6 +1195,10 @@ ul {
 }
 
 @media (max-width: 620px) {
+  .mobile-header {
+    display: none;
+  }
+
   .hero-copy,
   .challenge-panel,
   .recorder,
@@ -1222,6 +1210,10 @@ ul {
   .stat,
   .controls {
     box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  main {
+    padding: 12px 12px 80px;
   }
 
   .controls,
