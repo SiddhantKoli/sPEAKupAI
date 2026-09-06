@@ -75,3 +75,16 @@ A [`render.yaml`](./render.yaml) Blueprint is included. Either push the repo and
 3. Deploy — no build command needed.
 
 The free plan works fine: the app has no npm dependencies and no heavy model to load.
+
+## Deploy to Vercel
+
+A [`vercel.json`](./vercel.json) is included that runs the whole app (static files + `/api/transcribe` + `/api/analyze`) as a single serverless function.
+
+1. Push this repo to GitHub.
+2. On vercel.com, choose **Add New → Project** and import the repo (no framework preset needed — Vercel picks up `vercel.json`).
+3. Add `GEMINI_API_KEY` (and optionally `OPENAI_API_KEY`) under **Settings → Environment Variables**.
+4. Deploy.
+
+Notes:
+- The Vercel Hobby plan caps request bodies at **4.5 MB**, so keep recordings under ~2–3 minutes (the app's recordings stream to the API as one request). Render has no such limit and is the better fit for longer recordings.
+- If transcriptions time out, raise the function's **Max Duration** to 60s in the project's Functions settings.

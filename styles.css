@@ -253,7 +253,8 @@ body:has(.side-nav:hover) main {
 }
 
 #progress.page {
-  grid-template-rows: auto minmax(110px, 0.4fr) minmax(200px, 0.9fr) minmax(130px, 0.6fr);
+  grid-template-rows: auto minmax(160px, 0.4fr) minmax(340px, 0.9fr) minmax(190px, 0.6fr);
+  overflow-y: auto;
 }
 
 #history.page {
@@ -1124,23 +1125,52 @@ ul {
     margin-left: 0;
     height: 100vh;
     height: 100dvh;
-    padding: 86px 18px 66px;
+    padding: 100px 18px 66px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .page {
-    height: calc(100vh - 152px);
-    height: calc(100dvh - 152px);
+    height: auto;
+    overflow: visible;
     gap: 14px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   #practice.page {
     grid-template-rows: auto auto auto;
   }
 
+  .hero,
+  .controls,
+  .studio {
+    min-height: auto;
+  }
+
+  .challenge-panel,
+  .recorder {
+    max-height: none;
+  }
+
+  .recorder {
+    overflow: visible;
+  }
+
+  .transcript-stage {
+    min-height: 200px;
+  }
+
   #progress.page {
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+  }
+
+  .progress,
+  .trends {
+    min-height: auto;
+  }
+
+  .coach {
+    min-height: auto;
+    overflow: visible;
   }
 
   #history.page {
@@ -1198,6 +1228,17 @@ ul {
   .progress,
   .record-actions {
     grid-template-columns: 1fr;
+  }
+
+  .coach {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    text-align: center;
+  }
+
+  .coach .button {
+    align-self: center;
   }
 
   .controls {

@@ -23,3 +23,6 @@ Thumbs.db
 
 # Freebuff tooling state (never push)
 .freebuff/
+
+.vercel
+.env*

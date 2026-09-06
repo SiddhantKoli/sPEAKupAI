@@ -9,17 +9,20 @@ loadEnvFile(path.join(root, ".env"));
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8"
+  ".js": "application/javascript; charset=utf-8",
+  ".png": "image/png"
 };
 
-const server = http.createServer(async (request, response) => {
+const server = http.createServer(handleRequest);
+
+function handleRequest(request, response) {
   if (request.method === "POST" && request.url === "/api/transcribe") {
-    await transcribeAudio(request, response);
+    transcribeAudio(request, response);
     return;
   }
 
   if (request.method === "POST" && request.url === "/api/analyze") {
-    await analyzeSpeech(request, response);
+    analyzeSpeech(request, response);
     return;
   }
 
@@ -46,7 +49,7 @@ const server = http.createServer(async (request, response) => {
     });
     response.end(data);
   });
-});
+}
 
 async function transcribeAudio(request, response) {
   try {
@@ -181,8 +184,16 @@ Challenge difficulty: ${challenge?.difficulty || "Medium"}.`;
 }
 
 function buildEvaluationSystemInstruction(challenge) {
-  return `You are an expert impromptu speaking coach. Evaluate the speech transcript based on the challenge mode: "${challenge?.mode || "word"}" (prompt: "${challenge?.text || ""}").
-Respond ONLY in JSON. Your output must strictly match this structure:
+  return `You are a strict, expert impromptu speaking coach. You are evaluating a REAL speech a student just gave, word-for-word, in the challenge mode: "${challenge?.mode || "word"}" on the prompt: "${challenge?.text || ""}".
+
+Rules:
+1. Read the transcript carefully and ground EVERY point of feedback in something the speaker actually said — quote or paraphrase their exact words. Never give generic advice that could apply to any speech.
+2. Be critical, not a cheerleader. Typical overall scores are 4-7. Give 8+ only for genuinely exceptional speeches; give low scores for filler-heavy, rambling, off-topic, or thin speeches.
+3. Count filler words (uh, um, like, you know, so) and penalize fluency and coherence accordingly. Note whether the speech used a clear opening, examples, transitions, and a conclusion.
+4. Return EXACTLY 6 strengths and 6 improvements — each one a single specific, actionable sentence tied to the actual content.
+5. The advice must be a detailed 2-3 sentence concrete coaching tip specific to THIS speech.
+
+Respond ONLY in JSON with exactly this structure:
 {
   "overall": number (overall score from 1.0 to 10.0),
   "scores": {
@@ -193,11 +204,11 @@ Respond ONLY in JSON. Your output must strictly match this structure:
     "fluency": number (1.0 to 10.0),
     "structure": number (1.0 to 10.0)
   },
-  "strengths": [string, string, string],
-  "improvements": [string, string, string],
-  "advice": string (a concise tip on what structure or trick to try next)
+  "strengths": [6 strings],
+  "improvements": [6 strings],
+  "advice": string (a detailed 2-3 sentence coaching tip)
 }
-Be critical but constructive. Base your score on clarity, filler words usage, logic, and relevance. IMPORTANT: Ensure all output strings use only standard clean ASCII characters (avoid curly quotes, em-dashes, or special symbols that might generate encoding issues).`;
+IMPORTANT: Use only standard clean ASCII characters (avoid curly quotes, em-dashes, or special symbols that might generate encoding issues).`;
 }
 
 async function analyzeWithOpenAI(systemInstruction, userPrompt) {
@@ -239,7 +250,7 @@ async function analyzeWithGemini(systemInstruction, userPrompt) {
     }
   };
 
-  const model = process.env.GEMINI_EVALUATE_MODEL || "gemini-3.6-flash";
+  const model = process.env.GEMINI_EVALUATE_MODEL || "gemini-3.5-flash-lite";
   const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const apiResponse = await fetch(geminiUrl, {
     method: "POST",
@@ -335,9 +346,14 @@ function shutdown() {
   process.exit(0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+// When deployed as a serverless function (e.g. Vercel), the platform imports this
+// module and calls handleRequest per request — it must not bind a port itself.
+if (require.main === module) {
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+  server.listen(port, host, () => {
+    console.log(`SpeakUp AI running at http://localhost:${port}`);
+  });
+}
 
-server.listen(port, host, () => {
-  console.log(`SpeakUp AI running at http://localhost:${port}`);
-});
+module.exports = handleRequest;
