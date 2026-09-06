@@ -187,7 +187,6 @@ const el = {
   challengeTime: document.querySelector("#challengeTime"),
   heroKicker: document.querySelector("#heroKicker"),
   heroLead: document.querySelector("#heroLead"),
-  studioNote: document.querySelector("#studioNote"),
   newChallenge: document.querySelector("#newChallenge"),
   startRecording: document.querySelector("#startRecording"),
   stopRecording: document.querySelector("#stopRecording"),
@@ -329,33 +328,27 @@ function fitChallengeText() {
 const modeCopy = {
   word: {
     kicker: "What will you talk about today?",
-    lead: "Boom — one random word hits the panel. Clock’s ticking. Make it funny, clear, and impossible to forget.",
-    studio: "Smash Start when you’re ready. Mic stays local — Whisper is your sidekick on this machine, and only the spoken lines stick around for practice."
+    lead: "Boom — one random word hits the panel. Clock’s ticking. Make it funny, clear, and impossible to forget."
   },
   topic: {
     kicker: "Hot take incoming!",
-    lead: "A question crashes onto the page. Grab a side, talk loud, and sell it like the last panel before the cliffhanger.",
-    studio: "Smash Start once your take is loaded. Whisper scribbles locally; the scorecard is the critic in the corner."
+    lead: "A question crashes onto the page. Grab a side, talk loud, and sell it like the last panel before the cliffhanger."
   },
   situation: {
     kicker: "Action scene: YOU.",
-    lead: "You’re dropped mid-plot. Talk like the stakes are real — calm hero energy, zero wooden dialogue.",
-    studio: "Smash Start and enter the scene. Audio stays on this machine — only your lines get saved for the coach."
+    lead: "You’re dropped mid-plot. Talk like the stakes are real — calm hero energy, zero wooden dialogue."
   },
   debate: {
     kicker: "Choose your fighter!",
-    lead: "Left side? Right side? Plant a flag, throw reasons like punches, and finish with a KO closing line.",
-    studio: "Smash Start when your case is ready. Whisper stays local; your argument becomes ink on the page."
+    lead: "Left side? Right side? Plant a flag, throw reasons like punches, and finish with a KO closing line."
   },
   interview: {
     kicker: "Welcome to the hot seat!",
-    lead: "The interviewer leans in. Answer like a pro: clean structure, real examples, no awkward comic silence.",
-    studio: "Smash Start and nail the answer. Recording is local-only — Whisper turns talk into text you can polish."
+    lead: "The interviewer leans in. Answer like a pro: clean structure, real examples, no awkward comic silence."
   },
   followup: {
     kicker: "Plot twist follow-up!",
-    lead: "They asked again — sharper this time. React fast, stay on plot, and don’t let the sequel flop.",
-    studio: "Smash Start the second that follow-up lands. Voice never leaves this machine — transcript only, promise."
+    lead: "They asked again — sharper this time. React fast, stay on plot, and don’t let the sequel flop."
   }
 };
 
@@ -363,7 +356,6 @@ function applyModeCopy(mode) {
   const copy = modeCopy[mode] || modeCopy.word;
   if (el.heroKicker) el.heroKicker.textContent = copy.kicker;
   if (el.heroLead) el.heroLead.textContent = copy.lead;
-  if (el.studioNote) el.studioNote.textContent = copy.studio;
 }
 
 function briefFor(mode, duration) {
