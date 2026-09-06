@@ -1294,6 +1294,13 @@ ul {
     gap: 14px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    min-height: 0;
+  }
+
+  .results,
+  .modal-feedback {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
   }
 
   .score-card {

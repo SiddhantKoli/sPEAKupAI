@@ -1300,6 +1300,15 @@ function titleForTrend(values) {
   return `Trend across ${values.length} session${values.length === 1 ? "" : "s"}`;
 }
 
+function syncResultModalLayout() {
+  if (!el.resultModal) return;
+  const compact = window.innerWidth <= 620;
+  const results = el.resultModal.querySelector(".results");
+  const feedback = el.resultModal.querySelector(".modal-feedback");
+  if (results) results.style.gridTemplateColumns = compact ? "1fr" : "290px 1fr";
+  if (feedback) feedback.style.gridTemplateColumns = compact ? "1fr" : "repeat(3, minmax(0, 1fr))";
+}
+
 function showResultModal(result) {
   if (!el.resultModal) return;
   state.activeModalResult = result;
@@ -1320,6 +1329,7 @@ function showResultModal(result) {
   renderList(el.modalStrengths, result.strengths);
   renderList(el.modalImprovements, result.improvements);
   el.modalRetryAdvice.textContent = result.advice;
+  syncResultModalLayout();
 
   el.resultModal.hidden = false;
   el.resultModal.style.display = "flex";
@@ -1885,6 +1895,7 @@ if (el.exportPdf) {
 }
 window.addEventListener("hashchange", showPageFromHash);
 window.addEventListener("resize", scheduleFitChallengeText);
+window.addEventListener("resize", syncResultModalLayout);
 
 // Close modal if overlay is clicked
 if (el.resultModal) {
