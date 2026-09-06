@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SpeakUp AI - Impromptu Speaking Coach</title>
+    <link rel="icon" type="image/png" href="./logo.png">
     <script>
       (function () {
         try {
@@ -17,32 +18,31 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=modal-close-20260813">
-    <style>
-      #fullScreenLoading {
-        display: none !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-      }
-    </style>
+    <link rel="stylesheet" href="./styles.css?v=splash-20260906">
+    <noscript>
+      <style>
+        #splashScreen {
+          display: none !important;
+        }
+        body.splash-active main {
+          opacity: 1 !important;
+        }
+      </style>
+    </noscript>
   </head>
-  <body>
+  <body class="splash-active">
     <aside class="side-nav collapsed" id="sidebar" aria-label="Primary navigation">
-      <div>
+      <div class="side-nav-top">
         <a class="brand" href="#practice" aria-label="SpeakUp AI home">
-          <span class="brand-mark">SU</span>
-          <span>
-            <strong>SpeakUp AI</strong>
-            <small>Impromptu coach</small>
-          </span>
+          <img class="brand-logo" src="./logo.png" alt="SpeakUp AI logo">
         </a>
+      </div>
+      <div class="side-nav-footer">
         <nav class="nav-links">
           <a href="#practice" class="active" data-page-link="practice">Practice</a>
           <a href="#progress" data-page-link="progress">Progress</a>
           <a href="#history" data-page-link="history">History</a>
         </nav>
-      </div>
-      <div class="side-nav-footer">
         <button class="button ghost theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark theme">
           <span class="theme-toggle-icon" aria-hidden="true">◐</span>
           <span class="theme-toggle-label">Dark</span>
@@ -55,12 +55,16 @@
       </div>
     </aside>
 
-    <!-- Full-screen Loading Overlay -->
-    <div id="fullScreenLoading" class="loading-overlay" hidden>
-      <div class="loading-container">
-        <div class="loading-spinner"></div>
-        <h2 class="loading-title">COMIC INK LOADING...</h2>
-        <p class="loading-subtitle">The speech coach is analyzing your impromptu panels!</p>
+    <!-- Animated intro splash -->
+    <div id="splashScreen" class="splash-screen" aria-hidden="true">
+      <div class="splash-inner">
+        <div class="splash-logo-wrap">
+          <img class="splash-logo" src="./logo.png" alt="SpeakUp AI logo">
+        </div>
+        <div class="splash-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <p class="splash-tagline">Think fast. Speak better.</p>
       </div>
     </div>
 
@@ -69,7 +73,11 @@
       <div class="modal-content">
         <div class="modal-header">
           <h2 id="modalTitle">SCORECARD DETAIL</h2>
-          <button id="closeModal" class="button danger mini-btn">Close</button>
+          <div class="modal-header-actions">
+            <button id="exportPng" class="button secondary mini-btn" type="button">Save PNG</button>
+            <button id="exportPdf" class="button ghost mini-btn" type="button">Print / PDF</button>
+            <button id="closeModal" class="button danger mini-btn">Close</button>
+          </div>
         </div>
         <div class="modal-body">
           <div class="results band">
@@ -101,11 +109,7 @@
 
     <header class="mobile-header">
       <a class="brand" href="#practice" aria-label="SpeakUp AI home">
-        <span class="brand-mark">SU</span>
-        <span>
-          <strong>SpeakUp AI</strong>
-          <small>Coach</small>
-        </span>
+        <img class="brand-logo" src="./logo.png" alt="SpeakUp AI logo">
       </a>
       <div class="mobile-header-actions">
         <button class="icon-button theme-toggle" id="mobileThemeToggle" type="button" aria-label="Switch to dark theme">◐</button>
@@ -151,21 +155,38 @@
               <option value="followup">Follow-Up</option>
             </select>
           </div>
-          <div class="control-group">
+          <div class="control-group" id="difficultyGroup">
             <label for="difficulty">Difficulty</label>
             <select id="difficulty">
               <option>Easy</option>
               <option>Medium</option>
               <option>Hard</option>
               <option>Expert</option>
+              <option value="custom">Custom…</option>
             </select>
           </div>
-          <div class="control-group">
+          <div class="control-group" id="durationGroup">
             <label for="duration">Duration</label>
             <select id="duration">
               <option value="30">30 seconds</option>
               <option value="60" selected>60 seconds</option>
               <option value="120">120 seconds</option>
+            </select>
+          </div>
+          <div class="control-group" id="customTimerGroup" hidden>
+            <label for="customSeconds">Custom timer</label>
+            <div class="custom-fields">
+              <input type="number" id="customSeconds" min="15" max="600" step="5" value="75" aria-label="Custom timer in seconds">
+              <span class="custom-unit">sec</span>
+            </div>
+          </div>
+          <div class="control-group" id="customComplexityGroup" hidden>
+            <label for="customComplexity">Complexity</label>
+            <select id="customComplexity">
+              <option>Easy</option>
+              <option selected>Medium</option>
+              <option>Hard</option>
+              <option>Expert</option>
             </select>
           </div>
           <button class="button secondary" id="newChallenge" type="button">New Challenge</button>
@@ -191,11 +212,11 @@
           <div class="transcript-box">
             <label for="transcript">Speech bubbles → text</label>
             <div class="transcript-stage">
-              <textarea id="transcript" rows="12" placeholder="Talk first. Hit Stop. Whisper scribbles your speech bubbles here."></textarea>
+              <textarea id="transcript" rows="12" placeholder="Talk first. Hit Stop. Your speech bubbles get inked here."></textarea>
               <div class="transcribe-progress" id="transcribeProgress" hidden aria-live="polite" aria-busy="false">
                 <div class="transcribe-progress-copy">
-                  <strong>Whisper inking…</strong>
-                  <span id="transcribeProgressLabel">Local sidekick grinding on CPU…</span>
+                  <strong>Inking transcript…</strong>
+                  <span id="transcribeProgressLabel">Beaming audio to cloud transcription…</span>
                 </div>
                 <div class="transcribe-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="transcribeMeter">
                   <div class="transcribe-meter-fill" id="transcribeMeterFill"></div>
@@ -233,6 +254,16 @@
           </div>
         </section>
 
+        <section class="trends band" aria-label="Performance trends">
+          <div class="section-heading">
+            <div>
+              <p class="kicker">Your curves</p>
+              <h2>Trends</h2>
+            </div>
+          </div>
+          <div class="trend-grid" id="trendGrid"></div>
+        </section>
+
         <section class="coach band">
           <div>
             <p class="kicker">Coach in the corner</p>
@@ -262,6 +293,9 @@
       </section>
     </main>
 
-    <script src="./app.js?v=modal-close-20260813"></script>
+    <!-- Hidden sheet rendered only when printing a report -->
+    <div id="printSheet" aria-hidden="true"></div>
+
+    <script src="./app.js?v=print-logo-20260906"></script>
   </body>
 </html>

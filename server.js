@@ -1,21 +1,16 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
 
 const port = Number(process.env.PORT || 5173);
+const host = process.env.HOST || "0.0.0.0";
 const root = __dirname;
 loadEnvFile(path.join(root, ".env"));
-const whisperUrl = (process.env.WHISPER_URL || "http://127.0.0.1:8091").replace(/\/$/, "");
-const whisperPython = process.env.WHISPER_PYTHON || "python";
-const autoStartWhisper = process.env.WHISPER_AUTOSTART !== "0";
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8"
 };
-
-let whisperProcess = null;
 
 const server = http.createServer(async (request, response) => {
   if (request.method === "POST" && request.url === "/api/transcribe") {
@@ -58,24 +53,25 @@ async function transcribeAudio(request, response) {
     const buffer = await readRequestBody(request, 26 * 1024 * 1024);
     const contentType = request.headers["content-type"] || "audio/webm";
 
-    const localResult = await transcribeWithLocalWhisper(buffer, contentType);
-    if (localResult.ok) {
-      sendJson(response, 200, { text: localResult.text || "" });
+    if (process.env.GEMINI_API_KEY) {
+      const text = await transcribeWithGemini(buffer, contentType);
+      sendJson(response, 200, { text });
       return;
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       sendJson(response, 503, {
-        error: localResult.error || "Local Whisper is unavailable. Keep whisper_service.py running, then try again."
+        code: "no_api_key",
+        error: "No transcription key is configured. Add GEMINI_API_KEY or OPENAI_API_KEY to .env, then restart the server."
       });
       return;
     }
 
     const file = new Blob([buffer], { type: contentType });
     const form = new FormData();
-    form.append("file", file, "speech.webm");
-    form.append("model", process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-transcribe");
+    form.append("file", file, `speech${extensionForContentType(contentType)}`);
+    form.append("model", process.env.OPENAI_TRANSCRIBE_MODEL || "whisper-1");
     form.append("temperature", "0");
     form.append("prompt", "This is an impromptu speaking practice recording. Preserve the speaker's words accurately.");
 
@@ -90,7 +86,7 @@ async function transcribeAudio(request, response) {
     const result = await apiResponse.json();
     if (!apiResponse.ok) {
       sendJson(response, apiResponse.status, {
-        error: result.error?.message || localResult.error || "Transcription failed."
+        error: result.error?.message || "Transcription failed."
       });
       return;
     }
@@ -99,6 +95,54 @@ async function transcribeAudio(request, response) {
   } catch (error) {
     sendJson(response, 500, { error: error.message || "Unable to transcribe audio." });
   }
+}
+
+async function transcribeWithGemini(audioBuffer, contentType) {
+  const payload = {
+    contents: [
+      {
+        parts: [
+          {
+            text: "Transcribe the speech in this audio verbatim. Output only the transcript text."
+          },
+          {
+            inline_data: {
+              mime_type: contentType,
+              data: audioBuffer.toString("base64")
+            }
+          }
+        ]
+      }
+    ]
+  };
+
+  const model = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-flash-lite";
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const apiResponse = await fetch(geminiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await apiResponse.json().catch(() => ({}));
+  if (!apiResponse.ok) {
+    throw new Error(result.error?.message || "Failed to contact Gemini transcription API.");
+  }
+
+  const parts = result.candidates?.[0]?.content?.parts;
+  return (parts || []).map((part) => part.text || "").join("").trim();
+}
+
+function extensionForContentType(contentType) {
+  const lowered = (contentType || "").toLowerCase();
+  if (lowered.includes("wav")) return ".wav";
+  if (lowered.includes("mpeg") || lowered.includes("mp3")) return ".mp3";
+  if (lowered.includes("mp4") || lowered.includes("m4a")) return ".m4a";
+  if (lowered.includes("ogg")) return ".ogg";
+  if (lowered.includes("flac")) return ".flac";
+  return ".webm";
 }
 
 async function analyzeSpeech(request, response) {
@@ -116,20 +160,20 @@ async function analyzeSpeech(request, response) {
 Speech Duration: ${duration} seconds.
 Challenge difficulty: ${challenge?.difficulty || "Medium"}.`;
 
-    if (process.env.OPENAI_API_KEY) {
-      const analysis = await analyzeWithOpenAI(systemInstruction, userPrompt);
-      sendJson(response, 200, { ...analysis, provider: "openai" });
-      return;
-    }
-
     if (process.env.GEMINI_API_KEY) {
       const analysis = await analyzeWithGemini(systemInstruction, userPrompt);
       sendJson(response, 200, { ...analysis, provider: "gemini" });
       return;
     }
 
+    if (process.env.OPENAI_API_KEY) {
+      const analysis = await analyzeWithOpenAI(systemInstruction, userPrompt);
+      sendJson(response, 200, { ...analysis, provider: "openai" });
+      return;
+    }
+
     sendJson(response, 400, {
-      error: "No evaluation API key is configured. Add OPENAI_API_KEY or GEMINI_API_KEY to .env, then restart the server."
+      error: "No evaluation API key is configured. Add GEMINI_API_KEY or OPENAI_API_KEY to .env, then restart the server."
     });
   } catch (error) {
     sendJson(response, 500, { error: error.message || "Failed to analyze speech." });
@@ -195,7 +239,7 @@ async function analyzeWithGemini(systemInstruction, userPrompt) {
     }
   };
 
-  const model = process.env.GEMINI_EVALUATE_MODEL || "gemini-1.5-flash";
+  const model = process.env.GEMINI_EVALUATE_MODEL || "gemini-3.6-flash";
   const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const apiResponse = await fetch(geminiUrl, {
     method: "POST",
@@ -235,55 +279,7 @@ function parseAnalysisJson(textOutput, provider) {
   }
 }
 
-async function transcribeWithLocalWhisper(buffer, contentType) {
-  try {
-    const ready = await waitForWhisperReady(180000);
-    if (!ready) {
-      return { ok: false, error: "Local Whisper is still loading or offline. Keep whisper_service.py running." };
-    }
 
-    const apiResponse = await fetch(`${whisperUrl}/transcribe`, {
-      method: "POST",
-      headers: {
-        "content-type": contentType
-      },
-      body: buffer
-    });
-    const result = await apiResponse.json().catch(() => ({}));
-
-    if (!apiResponse.ok) {
-      return { ok: false, error: result.error || "Local Whisper transcription failed." };
-    }
-
-    return { ok: true, text: result.text || "" };
-  } catch (error) {
-    return { ok: false, error: error.message || "Could not reach local Whisper." };
-  }
-}
-
-async function waitForWhisperReady(timeoutMs) {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    try {
-      const response = await fetch(`${whisperUrl}/health`);
-      if (!response.ok) {
-        await sleep(250);
-        continue;
-      }
-      const payload = await response.json();
-      if (payload.status === "ready") return true;
-      if (payload.status === "error") return false;
-    } catch {
-      // Service may still be starting.
-    }
-    await sleep(250);
-  }
-  return false;
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -335,48 +331,13 @@ function sendJson(response, status, payload) {
   response.end(JSON.stringify(payload));
 }
 
-async function ensureWhisperService() {
-  if (await waitForWhisperReady(500)) {
-    console.log(`Local Whisper already running at ${whisperUrl}`);
-    return;
-  }
-
-  if (!autoStartWhisper) {
-    console.log(`Start Whisper manually: ${whisperPython} whisper_service.py`);
-    return;
-  }
-
-  console.log("Starting local Whisper service...");
-  whisperProcess = spawn(whisperPython, [path.join(root, "whisper_service.py")], {
-    cwd: root,
-    stdio: "inherit",
-    windowsHide: true
-  });
-
-  whisperProcess.on("exit", (code, signal) => {
-    console.log(`Whisper service exited (code=${code}, signal=${signal})`);
-    whisperProcess = null;
-  });
-
-  const ready = await waitForWhisperReady(180000);
-  if (ready) {
-    console.log(`Local Whisper ready at ${whisperUrl}`);
-  } else {
-    console.log("Whisper is still loading in the background. First transcription may wait until it is ready.");
-  }
-}
-
 function shutdown() {
-  if (whisperProcess && !whisperProcess.killed) {
-    whisperProcess.kill();
-  }
   process.exit(0);
 }
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-server.listen(port, "127.0.0.1", async () => {
-  console.log(`SpeakUp AI running at http://127.0.0.1:${port}`);
-  await ensureWhisperService();
+server.listen(port, host, () => {
+  console.log(`SpeakUp AI running at http://localhost:${port}`);
 });

@@ -1,0 +1,14 @@
+{
+  "name": "speakup-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI impromptu speaking coach — think fast, speak better.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

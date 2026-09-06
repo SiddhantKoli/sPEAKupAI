@@ -171,7 +171,8 @@ const state = {
   transcribeProgressId: null,
   startedAt: null,
   remaining: 60,
-  history: loadHistory()
+  history: loadHistory(),
+  activeModalResult: null
 };
 
 const el = {
@@ -180,6 +181,12 @@ const el = {
   mode: document.querySelector("#mode"),
   difficulty: document.querySelector("#difficulty"),
   duration: document.querySelector("#duration"),
+  difficultyGroup: document.querySelector("#difficultyGroup"),
+  durationGroup: document.querySelector("#durationGroup"),
+  customTimerGroup: document.querySelector("#customTimerGroup"),
+  customComplexityGroup: document.querySelector("#customComplexityGroup"),
+  customSeconds: document.querySelector("#customSeconds"),
+  customComplexity: document.querySelector("#customComplexity"),
   challengeKind: document.querySelector("#challengeKind"),
   challengeText: document.querySelector("#challengeText"),
   challengeBrief: document.querySelector("#challengeBrief"),
@@ -214,6 +221,7 @@ const el = {
   coachChallenge: document.querySelector("#coachChallenge"),
   clearHistory: document.querySelector("#clearHistory"),
   historyList: document.querySelector("#historyList"),
+  trends: document.querySelector("#trendGrid"),
   themeToggle: document.querySelector("#themeToggle"),
   mobileThemeToggle: document.querySelector("#mobileThemeToggle"),
   transcribeProgress: document.querySelector("#transcribeProgress"),
@@ -221,10 +229,12 @@ const el = {
   transcribeMeter: document.querySelector("#transcribeMeter"),
   transcribeMeterFill: document.querySelector("#transcribeMeterFill"),
   
-  // Loading & Modal overlays
-  fullScreenLoading: document.querySelector("#fullScreenLoading"),
+  // Modal overlays
   resultModal: document.querySelector("#resultModal"),
   closeModal: document.querySelector("#closeModal"),
+  exportPng: document.querySelector("#exportPng"),
+  exportPdf: document.querySelector("#exportPdf"),
+  printSheet: document.querySelector("#printSheet"),
   modalTitle: document.querySelector("#modalTitle"),
   modalOverallScore: document.querySelector("#modalOverallScore"),
   modalScoreSummary: document.querySelector("#modalScoreSummary"),
@@ -238,15 +248,44 @@ function pick(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function syncCustomControls() {
+  const custom = isCustomDifficulty();
+  el.difficultyGroup.hidden = custom;
+  el.durationGroup.hidden = custom;
+  el.customTimerGroup.hidden = !custom;
+  el.customComplexityGroup.hidden = !custom;
+}
+
+function isCustomDifficulty() {
+  return el.difficulty.value === "custom";
+}
+
+function clampCustomSeconds() {
+  let value = Number(el.customSeconds.value);
+  if (!Number.isFinite(value)) value = 75;
+  value = Math.round(Math.min(600, Math.max(15, value)));
+  el.customSeconds.value = value;
+  return value;
+}
+
+function effectiveDifficulty() {
+  return isCustomDifficulty() ? el.customComplexity.value : el.difficulty.value;
+}
+
+function effectiveDuration() {
+  return isCustomDifficulty() ? clampCustomSeconds() : Number(el.duration.value);
+}
+
 function generateChallenge(forceMode, forceDifficulty) {
   const mode = forceMode || el.mode.value;
-  const difficulty = forceDifficulty || el.difficulty.value;
-  const duration = Number(el.duration.value);
+  const custom = !forceMode && isCustomDifficulty();
+  const difficulty = forceDifficulty || (custom ? el.customComplexity.value : el.difficulty.value);
+  const duration = effectiveDuration();
   const text = pick(prompts[mode][difficulty]);
 
   state.challenge = {
     mode,
-    difficulty,
+    difficulty: custom ? "Custom" : difficulty,
     duration,
     text,
     label: prompts[mode].label
@@ -255,11 +294,12 @@ function generateChallenge(forceMode, forceDifficulty) {
 
   el.challengeKind.textContent = prompts[mode].label;
   el.challengeText.textContent = text;
-  el.challengeDifficulty.textContent = difficulty;
+  el.challengeDifficulty.textContent = custom ? "Custom" : difficulty;
   el.challengeTime.textContent = `${duration} seconds`;
   el.challengeBrief.textContent = briefFor(mode, duration);
   applyModeCopy(mode);
   el.timer.textContent = formatTime(duration);
+  syncCustomControls();
   scheduleFitChallengeText();
 }
 
@@ -385,7 +425,7 @@ async function startRecording() {
   state.remaining = state.challenge.duration;
   state.isRecording = true;
   setRecordingUi(true);
-  el.transcript.value = "On air… spill the speech bubbles! After Stop, Whisper inks them here.";
+  el.transcript.value = "On air… spill the speech bubbles! After Stop, the transcript lands here.";
 
   startTimer();
 
@@ -549,7 +589,7 @@ function startSpeechRecognition() {
   try {
     recognition.start();
   } catch {
-    // Live preview is optional; Whisper still runs after Stop.
+    // Live preview is optional; cloud transcription still runs after Stop.
   }
 }
 
@@ -601,6 +641,8 @@ function setRecordingUi(isRecording) {
   el.mode.disabled = isRecording;
   el.difficulty.disabled = isRecording;
   el.duration.disabled = isRecording;
+  el.customSeconds.disabled = isRecording;
+  el.customComplexity.disabled = isRecording;
   el.newChallenge.disabled = isRecording;
   el.recordingState.textContent = isRecording ? "On air" : "Ready";
   el.recordingState.classList.toggle("recording", isRecording);
@@ -614,7 +656,7 @@ function appendNotice(message) {
 
 async function transcribeRecordedAudio(autoEvaluate) {
   if (!state.audioBlob || state.audioBlob.size === 0) {
-    if (!el.transcript.value.trim() || el.transcript.value.startsWith("Listening…")) {
+    if (!sanitizeTranscript(el.transcript.value)) {
       appendNotice("No audio was captured. Try Start Speaking again and allow the microphone.");
     }
     if (autoEvaluate && el.transcript.value.trim()) evaluateCurrentSpeech();
@@ -624,7 +666,7 @@ async function transcribeRecordedAudio(autoEvaluate) {
   const previewTranscript = sanitizeTranscript(el.transcript.value);
   el.recordingState.textContent = "Transcribing";
   el.transcript.value = previewTranscript;
-  el.scoreSummary.textContent = "Whisper is inking your speech bubbles… hold for the reveal!";
+  el.scoreSummary.textContent = "Inking your speech bubbles… hold for the reveal!";
   startTranscribeProgress();
 
   try {
@@ -638,18 +680,31 @@ async function transcribeRecordedAudio(autoEvaluate) {
     const result = await response.json();
 
     if (!response.ok) {
-      el.scoreSummary.textContent = result.error || "Whisper transcription failed.";
-      el.transcript.value = previewTranscript || `[${result.error || "Whisper transcription failed."}]`;
+      if (result.code === "no_api_key") {
+        if (previewTranscript) {
+          // No transcription key configured — keep the browser's live
+          // SpeechRecognition transcript as the final one instead of failing.
+          el.transcript.value = previewTranscript;
+          el.scoreSummary.textContent = "Using the browser's speech-recognition transcript. Add GEMINI_API_KEY or OPENAI_API_KEY to .env for higher-accuracy cloud transcription.";
+        } else {
+          // No key AND the browser's speech service captured nothing.
+          el.transcript.value = "";
+          el.scoreSummary.textContent = "No speech was recognized. The browser's speech service captured nothing — add GEMINI_API_KEY or OPENAI_API_KEY to .env for cloud transcription, or record in Chrome/Edge with the microphone allowed.";
+        }
+      } else {
+        el.scoreSummary.textContent = result.error || "Transcription failed.";
+        el.transcript.value = previewTranscript || `[${result.error || "Transcription failed."}]`;
+      }
     } else {
       const text = (result.text || "").trim();
-      el.transcript.value = text || previewTranscript || "[Whisper returned an empty transcript. Try speaking a bit louder or longer.]";
+      el.transcript.value = text || previewTranscript || "[Transcription returned an empty transcript. Try speaking a bit louder or longer.]";
       el.scoreSummary.textContent = text
         ? "Transcript unlocked! Hit Evaluate and face the scorecard."
-        : "Whisper shrugged — empty transcript. Try louder or longer.";
+        : "Transcription shrugged — empty transcript. Try louder or longer.";
     }
   } catch (error) {
-    el.scoreSummary.textContent = "Could not reach the transcription service. Is the local server running?";
-    el.transcript.value = previewTranscript || "[Could not reach local Whisper. Keep node server.js and whisper_service.py running.]";
+    el.scoreSummary.textContent = "Could not reach the transcription service. Is the server running?";
+    el.transcript.value = previewTranscript || "[Could not reach the transcription service. Keep node server.js running.]";
   } finally {
     stopTranscribeProgress(true);
     el.recordingState.textContent = "Ready";
@@ -663,9 +718,9 @@ function startTranscribeProgress() {
 
   let progress = 8;
   const labels = [
-    "Local sidekick grinding on CPU…",
+    "Beaming audio to cloud transcription…",
     "Zap! Crunching audio frames…",
-    "Still fighting — CPUs are dramatic…",
+    "Still working — good takes take time…",
     "Final panel loading…"
   ];
 
@@ -719,8 +774,8 @@ function stopTranscribeProgress(complete) {
 
 function sanitizeTranscript(value) {
   return String(value || "")
+    .replace(/^On air….*$/m, "")
     .replace(/^Listening….*$/m, "")
-    .replace(/^Transcribing with local Whisper….*$/m, "")
     .replace(/\[[^\]]+\]/g, "")
     .trim();
 }
@@ -793,7 +848,6 @@ async function evaluateCurrentSpeech() {
       : "API analysis unavailable. Used local scoring instead.";
     completeLocalEvaluation(transcript, duration, message);
   } finally {
-    if (el.fullScreenLoading) el.fullScreenLoading.hidden = true;
     el.evaluate.disabled = false;
   }
 }
@@ -802,7 +856,6 @@ function completeLocalEvaluation(transcript, duration, message) {
   const localResult = evaluateTranscript(transcript, duration, state.challenge);
   localResult.provider = "local";
   saveAttempt(localResult);
-  if (el.fullScreenLoading) el.fullScreenLoading.hidden = true;
   el.scoreSummary.textContent = message;
   renderProgress();
   renderHistory();
@@ -989,6 +1042,7 @@ function loadHistory() {
 }
 
 function renderProgress() {
+  renderTrends();
   const attempts = state.history;
   if (!attempts.length) {
     el.navAverage.textContent = "--";
@@ -1021,8 +1075,102 @@ function calculateStreak(attempts) {
   return streak;
 }
 
+// ---- Trends ----
+
+function renderTrends() {
+  const container = el.trends;
+  if (!container) return;
+
+  const attempts = [...state.history].reverse(); // oldest → newest, left to right
+  if (!attempts.length) {
+    container.innerHTML = '<div class="trend-empty"><p>Complete a few sessions to see your curves take shape.</p></div>';
+    return;
+  }
+
+  const overall = attempts.map((item) => item.overall);
+  const wpm = attempts.map((item) => item.metrics.wpm || 0);
+  const fillers = attempts.map((item) => {
+    if (item.metrics.fillerRate != null) return item.metrics.fillerRate;
+    if (item.metrics.fillerCount != null) {
+      return item.metrics.words ? round1((item.metrics.fillerCount / item.metrics.words) * 100) : 0;
+    }
+    return 0;
+  });
+
+  container.innerHTML = [
+    trendCard("Overall score", overall, { min: 0, max: 10, unit: "" }),
+    trendCard("Speaking pace", wpm, { unit: " WPM" }),
+    trendCard("Filler rate", fillers, { unit: "%" })
+  ].join("");
+}
+
+function trendCard(title, values, opts) {
+  return `
+    <article class="trend-card">
+      <h3>${title}</h3>
+      ${buildTrendSvg(values, opts, title)}
+      <p class="trend-summary">${summarizeTrend(values, opts.unit)}</p>
+    </article>
+  `;
+}
+
+function summarizeTrend(values, unit) {
+  const last = values[values.length - 1];
+  const best = Math.max(...values);
+  const count = values.length;
+  return `Latest ${fmtAxis(last)}${unit} · Best ${fmtAxis(best)}${unit} · ${count} session${count === 1 ? "" : "s"}`;
+}
+
+function fmtAxis(value) {
+  return String(Number(Number(value).toFixed(1)));
+}
+
+function buildTrendSvg(values, opts, title) {
+  const W = 340;
+  const H = 128;
+  const pad = { l: 30, r: 12, t: 14, b: 20 };
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+  const n = values.length;
+  const minValue = opts.min != null ? opts.min : Math.floor(Math.min(...values));
+  const maxValue = opts.max != null ? opts.max : Math.ceil(Math.max(...values));
+  const span = Math.max(maxValue - minValue, 0.0001);
+  const x = (i) => (n === 1 ? pad.l + plotW / 2 : pad.l + (i / (n - 1)) * plotW);
+  const y = (v) => pad.t + plotH - ((v - minValue) / span) * plotH;
+
+  const gridLines = [0.25, 0.5, 0.75].map((t) => {
+    const gy = pad.t + plotH * t;
+    const gv = minValue + span * (1 - t);
+    return `<line class="chart-grid" x1="${pad.l}" y1="${gy}" x2="${W - pad.r}" y2="${gy}"/>
+      <text x="${pad.l - 5}" y="${gy + 3}" text-anchor="end">${fmtAxis(gv)}</text>`;
+  }).join("");
+
+  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const area = `M${pts[0]} L${pts.join(" L")} L${x(n - 1).toFixed(1)},${(pad.t + plotH).toFixed(1)} L${x(0).toFixed(1)},${(pad.t + plotH).toFixed(1)} Z`;
+  const valueLabels = n <= 12
+    ? values.map((v, i) => `<text class="chart-value" x="${x(i)}" y="${y(v) - 8}" text-anchor="middle">${fmtAxis(v)}</text>`).join("")
+    : "";
+  const dots = pts.map((p) => {
+    const [cx, cy] = p.split(",");
+    return `<circle class="chart-dot" cx="${cx}" cy="${cy}" r="3.5"/>`;
+  }).join("");
+
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title} — ${titleForTrend(values)}">
+    ${gridLines}
+    <path class="chart-area" d="${area}"/>
+    <polyline class="chart-line" stroke-width="3" points="${pts.join(" ")}"/>
+    ${dots}
+    ${valueLabels}
+  </svg>`;
+}
+
+function titleForTrend(values) {
+  return `Trend across ${values.length} session${values.length === 1 ? "" : "s"}`;
+}
+
 function showResultModal(result) {
   if (!el.resultModal) return;
+  state.activeModalResult = result;
   el.modalTitle.textContent = `${result.challenge.label.toUpperCase()}: ${result.challenge.text.toUpperCase()}`;
   el.modalOverallScore.textContent = result.overall.toFixed(1);
   const fillers = result.metrics.fillerCount !== undefined ? result.metrics.fillerCount : "calculated";
@@ -1047,8 +1195,395 @@ function showResultModal(result) {
 
 function hideResultModal() {
   if (!el.resultModal) return;
+  state.activeModalResult = null;
   el.resultModal.hidden = true;
   el.resultModal.style.display = "none";
+}
+
+// ---- Report export: PNG image + Print / PDF ----
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[ch]));
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function loadReportLogo() {
+  if (state.reportLogo) return Promise.resolve(state.reportLogo);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      state.reportLogo = img;
+      // Bake the logo into a data URL once: the print/PDF sheet and canvas export
+      // then get it instantly with no second network fetch (a fresh <img src>
+      // fetch races the print snapshot and shows an empty placeholder box).
+      try {
+        const c = document.createElement("canvas");
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        c.getContext("2d").drawImage(img, 0, 0);
+        state.reportLogoDataUrl = c.toDataURL("image/png");
+      } catch (err) {
+        state.reportLogoDataUrl = null;
+      }
+      resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = "./logo.png";
+  });
+}
+
+function waitForImage(img, timeoutMs = 2500) {
+  if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs;
+    const tick = () => {
+      if ((img.complete && img.naturalWidth > 0) || Date.now() > deadline) resolve();
+      else setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
+async function exportReportPng(result) {
+  const logo = await loadReportLogo();
+  const canvas = renderReportCanvas(result, logo);
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const filename = `speakup-report-${result.date.slice(0, 10)}.png`;
+    const file = new File([blob], filename, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: "SpeakUp AI report" }).catch(() => downloadBlob(blob, filename));
+    } else {
+      downloadBlob(blob, filename);
+    }
+  }, "image/png");
+}
+
+async function printReport(result) {
+  if (!el.printSheet) return;
+  el.printSheet.innerHTML = buildPrintMarkup(result);
+  // Make sure the logo is actually rendered before the print engine snapshots the
+  // page — otherwise the PDF shows an empty placeholder box instead of the logo.
+  await loadReportLogo();
+  const imgs = Array.from(el.printSheet.querySelectorAll("img"));
+  await Promise.all(imgs.map(waitForImage));
+  window.print();
+}
+
+function buildPrintMarkup(result) {
+  const rubric = Object.entries(result.scores).map(([key, value]) => `
+    <div class="print-rubric-item">
+      <span>${labelFor(key)}</span>
+      <strong>${value.toFixed(1)}</strong>
+      <div class="print-meter"><div style="width: ${value * 10}%"></div></div>
+    </div>`).join("");
+
+  const transcript = result.transcript
+    ? `<section class="print-section"><h3>Transcript</h3><p class="print-transcript">${escapeHtml(result.transcript)}</p></section>`
+    : "";
+
+  return `
+    <header class="print-header">
+      <div>
+        <img class="print-logo" src="${state.reportLogoDataUrl || "./logo.png"}" alt="SpeakUp AI logo">
+        <h1>Speech Report</h1>
+      </div>
+      <p class="print-date">${new Date(result.date).toLocaleString()}</p>
+    </header>
+    <section class="print-challenge">
+      <span class="print-tag">${escapeHtml(result.challenge.label)}</span>
+      <h2>${escapeHtml(result.challenge.text)}</h2>
+      <p class="print-meta">Difficulty: ${escapeHtml(result.challenge.difficulty)} · ${result.challenge.duration} seconds · Source: ${labelForProvider(result.provider || "local")}</p>
+    </section>
+    <section class="print-score-row">
+      <div class="print-overall">
+        <span>Overall</span>
+        <strong>${result.overall.toFixed(1)}<small>/10</small></strong>
+      </div>
+      <div class="print-metrics">
+        <div><span>Words</span><strong>${result.metrics.words ?? "—"}</strong></div>
+        <div><span>WPM</span><strong>${result.metrics.wpm ?? "—"}</strong></div>
+        <div><span>Fillers</span><strong>${result.metrics.fillerCount ?? "—"}</strong></div>
+      </div>
+    </section>
+    <section class="print-section"><h3>Rubric</h3><div class="print-rubric">${rubric}</div></section>
+    <section class="print-columns">
+      <div class="print-section"><h3>Strengths</h3><ul>${result.strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+      <div class="print-section"><h3>Improve Next</h3><ul>${result.improvements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+    </section>
+    <section class="print-section print-advice"><h3>Coach's advice</h3><p>${escapeHtml(result.advice)}</p></section>
+    ${transcript}
+    <footer class="print-footer">Generated with SpeakUp AI</footer>
+  `;
+}
+
+function renderReportCanvas(result, logo) {
+  const dpr = 2;
+  const W = 1200;
+  const FONTS = {
+    kicker: '800 24px "Courier New", monospace',
+    h1: '400 88px Impact, "Arial Narrow Bold", sans-serif',
+    tag: '800 22px "Courier New", monospace',
+    challenge: '400 50px Impact, "Arial Narrow Bold", sans-serif',
+    meta: '800 20px "Courier New", monospace',
+    body: '500 26px Inter, system-ui, sans-serif',
+    big: '400 128px Impact, "Arial Narrow Bold", sans-serif',
+    metric: '400 62px Impact, "Arial Narrow Bold", sans-serif',
+    small: '700 22px "Courier New", monospace',
+    list: '500 24px Inter, system-ui, sans-serif'
+  };
+  const C = {
+    ink: "#141b2b",
+    muted: "#424754",
+    paper: "#fffefd",
+    soft: "#e9edff",
+    yellow: "#ffe600",
+    blue: "#0058be",
+    white: "#ffffff"
+  };
+
+  // Measure pass: wrap text and compute block heights on a scratch canvas.
+  const scratch = document.createElement("canvas");
+  scratch.width = W * dpr;
+  scratch.height = 2000 * dpr;
+  const mctx = scratch.getContext("2d");
+  mctx.scale(dpr, dpr);
+
+  const widthOf = (text, font) => {
+    mctx.font = font;
+    return mctx.measureText(text).width;
+  };
+
+  const wrap = (text, font, maxWidth) => {
+    mctx.font = font;
+    const words = String(text).split(/\s+/);
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (line && mctx.measureText(test).width > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+
+  const padX = 40;
+  const contentW = W - padX * 2;
+  let y = 30;
+
+  const headerH = 168;
+  y += headerH + 24;
+
+  const challengeLines = wrap(result.challenge.text, FONTS.challenge, contentW - 64).slice(0, 3);
+  if (challengeLines.length === 3) {
+    challengeLines[2] = `${challengeLines[2].slice(0, -1)}…`;
+  }
+  const challengeH = 24 + 34 + 16 + challengeLines.length * 56 + 12 + 24 + 24;
+  y += challengeH + 24;
+
+  const scoreRowH = 240;
+  y += scoreRowH + 24;
+
+  const rubricRows = Object.entries(result.scores);
+  const rubricH = 44 + rubricRows.length * 52;
+  y += rubricH + 24;
+
+  const feedbackCardW = (contentW - 18) / 2;
+  const listLines = (items) => items.reduce((sum, item) => sum + wrap(item, FONTS.list, feedbackCardW - 60).length, 0);
+  const feedbackBodyLines = Math.max(listLines(result.strengths), listLines(result.improvements), 1);
+  const feedbackH = 70 + feedbackBodyLines * 36 + 36;
+  y += feedbackH + 24;
+
+  const adviceLines = wrap(result.advice, FONTS.body, contentW - 64);
+  const adviceH = 66 + adviceLines.length * 38 + 44;
+  y += adviceH + 24;
+
+  const footerH = 60;
+  const totalH = y + footerH + 30;
+
+  // Draw pass on the real canvas — restart the cursor at the top (the
+  // measure pass above left `y` pointing past the last block).
+  y = 30;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * dpr;
+  canvas.height = totalH * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = C.paper;
+  ctx.fillRect(0, 0, W, totalH);
+
+  const drawCard = (x, y0, w, h, fill) => {
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(x + 10, y0 + 10, w, h);
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y0, w, h);
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x, y0, w, h);
+  };
+
+  const drawList = (items, x, y0, maxWidth, lineH, font) => {
+    ctx.font = font;
+    ctx.fillStyle = C.ink;
+    let cursor = y0;
+    for (const item of items) {
+      const lines = wrap(item, font, maxWidth - 26);
+      lines.forEach((line, index) => {
+        ctx.fillText(index === 0 ? `•  ${line}` : line, index === 0 ? x : x + 26, cursor);
+        cursor += lineH;
+      });
+    }
+  };
+
+  // Header
+  drawCard(padX, y, contentW, headerH, C.yellow);
+  ctx.font = FONTS.kicker;
+  ctx.fillStyle = C.blue;
+  if (logo) {
+    ctx.fillStyle = "#0d0d0d";
+    ctx.fillRect(padX + 32, y + 22, 80, 80);
+    ctx.drawImage(logo, padX + 38, y + 28, 68, 68);
+  } else {
+    ctx.fillText("SPEAKUP AI · SPEECH REPORT", padX + 32, y + 50);
+  }
+  ctx.font = FONTS.h1;
+  ctx.fillStyle = C.ink;
+  ctx.fillText("Speech Report", padX + 32, y + 128);
+  ctx.font = FONTS.small;
+  ctx.fillStyle = C.muted;
+  ctx.textAlign = "right";
+  ctx.fillText(new Date(result.date).toLocaleString(), padX + contentW - 32, y + 58);
+  ctx.fillText(`Source: ${labelForProvider(result.provider || "local")}`, padX + contentW - 32, y + 92);
+  ctx.textAlign = "left";
+  y += headerH + 24;
+
+  // Challenge
+  drawCard(padX, y, contentW, challengeH, C.paper);
+  const tagText = String(result.challenge.label).toUpperCase();
+  const tagWidth = widthOf(tagText, FONTS.tag) + 24;
+  ctx.fillStyle = C.blue;
+  ctx.fillRect(padX + 32, y + 24, tagWidth, 34);
+  ctx.font = FONTS.tag;
+  ctx.fillStyle = C.white;
+  ctx.fillText(tagText, padX + 32 + 12, y + 24 + 24);
+  ctx.font = FONTS.challenge;
+  ctx.fillStyle = C.ink;
+  challengeLines.forEach((line, index) => {
+    ctx.fillText(line, padX + 32, y + 24 + 34 + 16 + 56 * index + 44);
+  });
+  ctx.font = FONTS.meta;
+  ctx.fillStyle = C.muted;
+  ctx.fillText(`Difficulty ${result.challenge.difficulty} · ${result.challenge.duration} seconds`, padX + 32, y + challengeH - 24);
+  y += challengeH + 24;
+
+  // Score row
+  const overallW = 380;
+  const metricsW = contentW - overallW - 18;
+  drawCard(padX, y, overallW, scoreRowH, C.paper);
+  ctx.font = FONTS.kicker;
+  ctx.fillStyle = C.muted;
+  ctx.fillText("OVERALL SCORE", padX + 28, y + 52);
+  ctx.font = FONTS.big;
+  ctx.fillStyle = C.ink;
+  ctx.fillText(result.overall.toFixed(1), padX + 28, y + 172);
+  ctx.font = FONTS.small;
+  ctx.fillStyle = C.muted;
+  ctx.fillText("/ 10", padX + 28 + widthOf(result.overall.toFixed(1), FONTS.big) + 18, y + 172);
+
+  drawCard(padX + overallW + 18, y, metricsW, scoreRowH, C.paper);
+  const metrics = [
+    ["Words", result.metrics.words ?? "—"],
+    ["WPM", result.metrics.wpm ?? "—"],
+    ["Fillers", result.metrics.fillerCount ?? "—"]
+  ];
+  const colW = metricsW / 3;
+  metrics.forEach(([label, value], index) => {
+    const cx = padX + overallW + 18 + index * colW;
+    ctx.font = FONTS.kicker;
+    ctx.fillStyle = C.muted;
+    ctx.fillText(label.toUpperCase(), cx + 22, y + 58);
+    ctx.font = FONTS.metric;
+    ctx.fillStyle = C.ink;
+    ctx.fillText(String(value), cx + 22, y + 150);
+  });
+  y += scoreRowH + 24;
+
+  // Rubric
+  drawCard(padX, y, contentW, rubricH, C.paper);
+  ctx.font = FONTS.kicker;
+  ctx.fillStyle = C.muted;
+  ctx.fillText("RUBRIC", padX + 28, y + 36);
+  rubricRows.forEach(([key, value], index) => {
+    const ry = y + 52 + index * 52;
+    ctx.font = FONTS.list;
+    ctx.fillStyle = C.ink;
+    ctx.fillText(labelFor(key), padX + 28, ry + 31);
+    const barX = padX + 330;
+    const barW = contentW - 330 - 120;
+    ctx.fillStyle = C.soft;
+    ctx.fillRect(barX, ry + 8, barW, 22);
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, ry + 8, barW, 22);
+    ctx.fillStyle = C.blue;
+    ctx.fillRect(barX + 2, ry + 10, Math.max(0, (value / 10) * (barW - 4)), 18);
+    ctx.font = FONTS.small;
+    ctx.fillStyle = C.ink;
+    ctx.fillText(value.toFixed(1), barX + barW + 16, ry + 30);
+  });
+  y += rubricH + 24;
+
+  // Strengths / Improvements
+  drawCard(padX, y, feedbackCardW, feedbackH, C.paper);
+  ctx.font = FONTS.kicker;
+  ctx.fillStyle = C.ink;
+  ctx.fillText("STRENGTHS", padX + 28, y + 40);
+  drawList(result.strengths, padX + 28, y + 70, feedbackCardW - 56, 36, FONTS.list);
+  drawCard(padX + feedbackCardW + 18, y, feedbackCardW, feedbackH, C.paper);
+  ctx.fillText("IMPROVE NEXT", padX + feedbackCardW + 18 + 28, y + 40);
+  drawList(result.improvements, padX + feedbackCardW + 18 + 28, y + 70, feedbackCardW - 56, 36, FONTS.list);
+  y += feedbackH + 24;
+
+  // Advice
+  drawCard(padX, y, contentW, adviceH, C.yellow);
+  ctx.font = FONTS.kicker;
+  ctx.fillStyle = C.ink;
+  ctx.fillText("COACH'S ADVICE", padX + 28, y + 42);
+  ctx.font = FONTS.body;
+  adviceLines.forEach((line, index) => {
+    ctx.fillText(line, padX + 28, y + 66 + 38 * (index + 1));
+  });
+  y += adviceH + 24;
+
+  // Footer
+  ctx.font = FONTS.small;
+  ctx.fillStyle = C.muted;
+  ctx.textAlign = "center";
+  ctx.fillText("Generated with SpeakUp AI — practice impromptu speaking", W / 2, y + 40);
+
+  return canvas;
 }
 
 function renderHistory() {
@@ -1192,9 +1727,21 @@ el.clearHistory.addEventListener("click", clearHistory);
 el.duration.addEventListener("change", () => generateChallenge());
 el.mode.addEventListener("change", () => generateChallenge());
 el.difficulty.addEventListener("change", () => generateChallenge());
+el.customSeconds.addEventListener("change", () => generateChallenge());
+el.customComplexity.addEventListener("change", () => generateChallenge());
 el.themeToggle.addEventListener("click", toggleTheme);
 el.mobileThemeToggle.addEventListener("click", toggleTheme);
 if (el.closeModal) el.closeModal.addEventListener("click", hideResultModal);
+if (el.exportPng) {
+  el.exportPng.addEventListener("click", () => {
+    if (state.activeModalResult) exportReportPng(state.activeModalResult);
+  });
+}
+if (el.exportPdf) {
+  el.exportPdf.addEventListener("click", () => {
+    if (state.activeModalResult) printReport(state.activeModalResult);
+  });
+}
 window.addEventListener("hashchange", showPageFromHash);
 window.addEventListener("resize", scheduleFitChallengeText);
 
@@ -1206,7 +1753,51 @@ if (el.resultModal) {
 }
 
 applyTheme(getPreferredTheme());
+initSplashScreen();
+// Preload the report logo so Print/PDF and PNG export have it cached and can
+// render it instantly (no empty placeholder box in the PDF).
+loadReportLogo();
 generateChallenge();
 showPageFromHash();
 renderProgress();
 renderHistory();
+
+function initSplashScreen() {
+  const splash = document.getElementById("splashScreen");
+  if (!splash) return;
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const startedAt = performance.now();
+  const minHold = reducedMotion ? 120 : 1700;
+  let exited = false;
+
+  const exitSplash = () => {
+    if (exited) return;
+    exited = true;
+    // Start the app fade-in underneath while the splash scales up and fades out.
+    document.body.classList.remove("splash-active");
+    splash.classList.add("exit");
+    const removeSplash = () => splash.remove();
+    splash.addEventListener("transitionend", removeSplash, { once: true });
+    // Safety net: never leave the splash stuck over the app.
+    setTimeout(removeSplash, 1000);
+  };
+
+  const scheduleExit = () => {
+    const wait = Math.max(0, minHold - (performance.now() - startedAt));
+    setTimeout(exitSplash, wait);
+  };
+
+  // Tie the exit to actual load completion so the splash never cuts off on
+  // slow connections, but still holds a minimum beat so it reads as designed.
+  if (document.readyState === "complete") {
+    scheduleExit();
+  } else {
+    window.addEventListener("load", scheduleExit);
+  }
+
+  // Hard fallback if the load event never fires (blocked resource, etc.).
+  setTimeout(() => {
+    if (!exited) exitSplash();
+  }, 5000);
+}

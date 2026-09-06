@@ -1,0 +1,15 @@
+# Render Blueprint — deploy as a Web Service
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: speakup-ai
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
