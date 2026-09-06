@@ -1,13 +1,25 @@
 const prompts = {
   word: {
     label: "Random word",
-    Easy: ["Mirror", "Rain", "Coffee", "Window", "Bridge", "Music"],
-    Medium: ["Freedom", "Momentum", "Failure", "Patience", "Identity", "Trust"],
-    Hard: ["Disruption", "Legacy", "Contradiction", "Scarcity", "Influence", "Resilience"],
+    Easy: [
+      "Mirror", "Rain", "Coffee", "Window", "Bridge", "Music", "Ocean", "Lantern", "Candle", "Signal", "Storm", "Garden",
+      "Paper", "Rocket", "Stone", "Puzzle", "Forest", "Ticket", "Market", "Compass"
+    ],
+    Medium: [
+      "Freedom", "Momentum", "Failure", "Patience", "Identity", "Trust", "Leadership", "Adaptability", "Courage", "Balance",
+      "Pressure", "Purpose", "Curiosity", "Conflict", "Clarity", "Discipline", "Resilience", "Creativity", "Focus", "Integrity"
+    ],
+    Hard: [
+      "Disruption", "Legacy", "Contradiction", "Scarcity", "Influence", "Resilience", "Complexity", "Accountability", "Innovation",
+      "Sustainability", "Ambiguity", "Authority", "Dignity", "Democracy", "Vulnerability", "Perspective", "Optimism", "Reputation", "Morality"
+    ],
     Expert: [
       "Explain friendship, artificial intelligence, and street food in one speech.",
       "Connect silence, ambition, and public transport.",
-      "Relate courage, algorithms, and a broken umbrella."
+      "Relate courage, algorithms, and a broken umbrella.",
+      "Tie memory, leadership, and late-night trains together under one clear point.",
+      "Describe how comfort, risk, and trust shape a good decision.",
+      "Blend humor, discipline, and public trust into a short but memorable argument."
     ]
   },
   topic: {
@@ -15,22 +27,46 @@ const prompts = {
     Easy: [
       "What makes a good friend?",
       "Should students have less homework?",
-      "Is reading still important?"
+      "Is reading still important?",
+      "Why do people enjoy music so much?",
+      "Should schools teach life skills?",
+      "Is it better to be early or on time?",
+      "What makes a city feel welcoming?",
+      "Why do some people become leaders naturally?",
+      "Should everyone learn how to cook?",
+      "Is travel more valuable than comfort?"
     ],
     Medium: [
       "Is social media beneficial?",
       "Is failure necessary for success?",
-      "Should every student learn public speaking?"
+      "Should every student learn public speaking?",
+      "Does technology make people more connected or more isolated?",
+      "Should schools focus more on creativity than grades?",
+      "Is ambition a strength or a burden?",
+      "Should employers value personality over qualifications?",
+      "What is the real cost of being constantly busy?",
+      "Is it better to be known for one skill or many?",
+      "Do people change more because of opportunity or pressure?"
     ],
     Hard: [
       "Should AI replace some classroom teaching?",
       "Does remote work help or hurt career growth?",
-      "Is convenience making people less patient?"
+      "Is convenience making people less patient?",
+      "Should governments regulate social platforms more strictly?",
+      "Is productivity culture damaging long-term wellbeing?",
+      "Do online communities create stronger belonging or weaker real-world ties?",
+      "Should universities focus more on practical experience than theory?",
+      "Is comfort reducing people’s willingness to take risks?",
+      "Does economic growth matter more than environmental protection?",
+      "Should public institutions be designed around efficiency or empathy?"
     ],
     Expert: [
       "Defend a policy you partly disagree with.",
       "Argue that boredom is useful in a hyperconnected world.",
-      "Explain why a bad idea can still create good outcomes."
+      "Explain why a bad idea can still create good outcomes.",
+      "Make the case that a society should value slower decisions over faster ones.",
+      "Argue that discomfort is often a necessary ingredient for growth.",
+      "Explain why a small, imperfect system can outperform a large, flawless one."
     ]
   },
   situation: {
@@ -38,22 +74,46 @@ const prompts = {
     Easy: [
       "Convince a friend to join you on a weekend trip.",
       "Explain a complicated concept to a child.",
-      "Thank a teacher who helped you improve."
+      "Thank a teacher who helped you improve.",
+      "Persuade someone to try a new coffee shop downtown.",
+      "Explain why a quiet team member deserves more recognition.",
+      "Ask a classmate to study with you before the test.",
+      "Convince a friend to take a healthier lunch option.",
+      "Explain how to handle a stressful group project calmly.",
+      "Thank a teammate for helping you stay on track.",
+      "Pitch the idea of a small community event to a friend."
     ],
     Medium: [
       "Persuade a customer to choose your product.",
       "Apologize for missing an important deadline.",
-      "Ask your manager for feedback on your work."
+      "Ask your manager for feedback on your work.",
+      "Convince a skeptical customer to trust a new brand.",
+      "Explain a team mistake without blaming anyone.",
+      "Ask for a second chance after a weak presentation.",
+      "Negotiate a fair split of responsibilities in a project.",
+      "Pitch a solution that saves time without reducing quality.",
+      "Explain a delayed launch without sounding defensive.",
+      "Defend a decision that was unpopular but necessary."
     ],
     Hard: [
       "Negotiate a raise while staying professional.",
       "Calm down a frustrated client during a live issue.",
-      "Explain a project delay to senior leaders."
+      "Explain a project delay to senior leaders.",
+      "Handle a team conflict while still protecting the deadline.",
+      "Ask for a major resource change without sounding demanding.",
+      "Recover trust after a public mistake with a clear plan.",
+      "Present a difficult truth to a decision-maker who wants optimism.",
+      "Reframe a failed experiment as a learning opportunity.",
+      "Explain a budget issue without damaging morale.",
+      "Turn a tense stakeholder meeting into a constructive plan."
     ],
     Expert: [
       "Pitch an impossible idea to a skeptical investor.",
       "Defend a mistake while taking accountability.",
-      "Turn a hostile question into a constructive discussion."
+      "Turn a hostile question into a constructive discussion.",
+      "Calm a room after a public disagreement and redirect it toward the goal.",
+      "Explain a strategic pivot that will disappoint some staff but protect the company.",
+      "Convince a resistant board to back an unpopular but necessary change."
     ]
   },
   debate: {
@@ -61,22 +121,46 @@ const prompts = {
     Easy: [
       "School uniforms should be required. Argue for it.",
       "Video games can teach useful skills. Argue for it.",
-      "Every city needs more parks. Argue for it."
+      "Every city needs more parks. Argue for it.",
+      "Students should start school later. Argue for it.",
+      "Reading books is more valuable than watching videos. Argue for it.",
+      "Remote learning should be the default. Argue for it.",
+      "Part-time jobs help students grow. Argue for it.",
+      "School lunches should be free for everyone. Argue for it.",
+      "People should take more public transport. Argue for it.",
+      "Every workplace should have team sports. Argue for it."
     ],
     Medium: [
       "AI will create more jobs than it destroys. Argue against it.",
       "Public exams should be replaced with projects. Argue for it.",
-      "Influencers should disclose all sponsored content. Argue for it."
+      "Influencers should disclose all sponsored content. Argue for it.",
+      "Students should have more homework. Argue for it.",
+      "The internet has made people less creative. Argue for it.",
+      "A four-day workweek would benefit productivity. Argue for it.",
+      "People should spend less time on social media. Argue for it.",
+      "The best leaders are introverts. Argue for it.",
+      "Books are more useful than podcasts. Argue for it.",
+      "Young people should be more optimistic about society. Argue for it."
     ],
     Hard: [
       "Companies should use four-day workweeks. Argue against it.",
       "Universities should prioritize skills over degrees. Argue for it.",
-      "Privacy is more important than personalization. Argue against it."
+      "Privacy is more important than personalization. Argue against it.",
+      "Governments should ban short-form video apps. Argue for it.",
+      "A company should prioritize culture over profit. Argue for it.",
+      "Education should focus more on failure than success. Argue for it.",
+      "People depend too much on convenience. Argue against it.",
+      "The most important quality in leadership is empathy. Argue for it.",
+      "Artificial intelligence should be regulated before widespread adoption. Argue for it.",
+      "A strict schedule is more valuable than freedom. Argue for it."
     ],
     Expert: [
       "Defend the weaker side of a debate about AI in hiring.",
       "Argue against your own favorite technology.",
-      "Make a persuasive case for a deeply unpopular but ethical decision."
+      "Make a persuasive case for a deeply unpopular but ethical decision.",
+      "Take the side most people reject and still make it sound practical.",
+      "Defend a policy that helps society but hurts a specific group in the short term.",
+      "Persuade an audience that comfort is often the real enemy of progress."
     ]
   },
   interview: {
@@ -84,22 +168,46 @@ const prompts = {
     Easy: [
       "Tell me about yourself.",
       "Why should we hire you?",
-      "What is one strength you are proud of?"
+      "What is one strength you are proud of?",
+      "What motivates you at work?",
+      "What kind of environment helps you perform best?",
+      "Why do you want this role?",
+      "What is a project you are proud of?",
+      "How do you handle stress?",
+      "What do you value in a team?",
+      "What is one thing you want to improve?"
     ],
     Medium: [
       "Tell me about a time you failed.",
       "Describe a conflict you handled well.",
-      "What is your biggest weakness?"
+      "What is your biggest weakness?",
+      "Describe a difficult decision you made at work.",
+      "Tell me about a time you had to adapt quickly.",
+      "What is a mistake you learned from?",
+      "How do you handle feedback you disagree with?",
+      "Describe a time you solved a problem creatively.",
+      "Why should we trust you with this role?",
+      "What makes you different from other candidates?"
     ],
     Hard: [
       "Tell me about a time you influenced without authority.",
       "Describe a high-pressure decision with incomplete information.",
-      "Why are you leaving your current role?"
+      "Why are you leaving your current role?",
+      "Explain a time when you had to say no to a priority.",
+      "Describe a project that went wrong and how you fixed it.",
+      "How do you handle being the least experienced person in the room?",
+      "Tell me about a time you had to manage a difficult stakeholder.",
+      "What is the hardest feedback you ever received?",
+      "Describe a leadership moment that did not go as planned.",
+      "Why are you a strong fit for a role that needs ambiguity tolerance?"
     ],
     Expert: [
       "Explain a career gap or setback with confidence.",
       "Answer a skeptical interviewer who doubts your experience.",
-      "Pitch yourself for a role that is slightly above your current level."
+      "Pitch yourself for a role that is slightly above your current level.",
+      "Explain a period of low performance and how you changed.",
+      "Answer a question about your greatest weakness without sounding rehearsed.",
+      "Describe how you handle competing priorities when everything feels urgent."
     ]
   },
   followup: {
@@ -107,22 +215,46 @@ const prompts = {
     Easy: [
       "Start with: My favorite skill is communication. Then answer a follow-up.",
       "Explain why practice matters. Then answer a follow-up.",
-      "Describe your ideal team. Then answer a follow-up."
+      "Describe your ideal team. Then answer a follow-up.",
+      "Talk about a skill you want to improve. Then answer a follow-up.",
+      "Share your favorite way to learn something new. Then answer a follow-up.",
+      "What does good leadership look like? Then answer a follow-up.",
+      "Talk about the best advice you have received. Then answer a follow-up.",
+      "Describe your ideal workday. Then answer a follow-up.",
+      "Explain a habit that helps you stay productive. Then answer a follow-up.",
+      "Describe a challenge you overcame. Then answer a follow-up."
     ],
     Medium: [
       "Defend your opinion on social media. Then answer a follow-up.",
       "Explain a personal learning mistake. Then answer a follow-up.",
-      "Pitch a simple product. Then answer a follow-up."
+      "Pitch a simple product. Then answer a follow-up.",
+      "Give your view on why some teams fail. Then answer a follow-up.",
+      "Explain your approach to difficult conversations. Then answer a follow-up.",
+      "Talk about the value of failure in a career. Then answer a follow-up.",
+      "Describe a time you had to build trust quickly. Then answer a follow-up.",
+      "Choose a skill worth learning at any age. Then answer a follow-up.",
+      "Argue for a practical policy in school or work. Then answer a follow-up.",
+      "Explain a small habit that leads to better results. Then answer a follow-up."
     ],
     Hard: [
       "Answer an interview question, then handle one challenging follow-up.",
       "Argue for a controversial idea, then respond to a rebuttal.",
-      "Explain a complex concept, then simplify it further."
+      "Explain a complex concept, then simplify it further.",
+      "Take a strong opinion and respond to a direct challenge without losing structure.",
+      "Answer a question with a clear stance, then defend it under pressure.",
+      "Talk about a difficult choice, then handle a follow-up that tests your reasoning.",
+      "Explain a failure, then answer a question about what you would do differently now.",
+      "Give a measured answer, then adapt when the follow-up pushes against it.",
+      "Defend a decision that benefited the group but hurt your personal preference.",
+      "Turn a vague opinion into a precise argument under follow-up pressure."
     ],
     Expert: [
       "Take a position, switch sides halfway, and answer a follow-up.",
       "Connect three unrelated ideas, then clarify the weakest link.",
-      "Give a concise answer, then expand only when challenged."
+      "Give a concise answer, then expand only when challenged.",
+      "Answer a broad question with specificity, then handle a follow-up on trade-offs.",
+      "Present a strong thesis, rethink it under pressure, and recover without stalling.",
+      "Respond to a challenge by reframing the question and strengthening your original point."
     ]
   }
 };
@@ -1300,9 +1432,12 @@ function buildPrintMarkup(result) {
 
   return `
     <header class="print-header">
-      <div>
+      <div class="print-brand">
         <img class="print-logo" src="${state.reportLogoDataUrl || "./logo.png"}" alt="SpeakUp AI logo">
-        <h1>Speech Report</h1>
+        <div class="print-brand-copy">
+          <p class="print-kicker">SpeakUp AI</p>
+          <h1>Speech Report</h1>
+        </div>
       </div>
       <p class="print-date">${new Date(result.date).toLocaleString()}</p>
     </header>
@@ -1444,6 +1579,10 @@ function renderReportCanvas(result, logo) {
     ctx.strokeRect(x, y0, w, h);
   };
 
+  const logoBoxX = padX + 32;
+  const logoBoxY = y + 22;
+  const titleX = logo ? logoBoxX + 104 : padX + 32;
+
   const drawList = (items, x, y0, maxWidth, lineH, font) => {
     ctx.font = font;
     ctx.fillStyle = C.ink;
@@ -1463,14 +1602,16 @@ function renderReportCanvas(result, logo) {
   ctx.fillStyle = C.blue;
   if (logo) {
     ctx.fillStyle = "#0d0d0d";
-    ctx.fillRect(padX + 32, y + 22, 80, 80);
-    ctx.drawImage(logo, padX + 38, y + 28, 68, 68);
+    ctx.fillRect(logoBoxX, logoBoxY, 80, 80);
+    ctx.drawImage(logo, logoBoxX + 8, logoBoxY + 8, 64, 64);
+    ctx.fillStyle = C.blue;
+    ctx.fillText("SPEAKUP AI", logoBoxX + 104, y + 50);
   } else {
     ctx.fillText("SPEAKUP AI · SPEECH REPORT", padX + 32, y + 50);
   }
   ctx.font = FONTS.h1;
   ctx.fillStyle = C.ink;
-  ctx.fillText("Speech Report", padX + 32, y + 128);
+  ctx.fillText("Speech Report", titleX, y + 128);
   ctx.font = FONTS.small;
   ctx.fillStyle = C.muted;
   ctx.textAlign = "right";
