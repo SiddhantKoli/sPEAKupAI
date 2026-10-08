@@ -580,16 +580,17 @@ function scheduleMechanicalClick(ctx, when, progress, isFinal) {
     const filter = ctx.createBiquadFilter();
 
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(isFinal ? 850 : 1250 - progress * 450, when);
-    filter.Q.setValueAtTime(isFinal ? 4 : 2, when);
+    filter.frequency.setValueAtTime(isFinal ? 980 : 1500 - progress * 550, when);
+    filter.Q.setValueAtTime(isFinal ? 5 : 2.8, when);
 
-    osc.type = isFinal ? "triangle" : "sine";
-    osc.frequency.setValueAtTime(isFinal ? 200 : 360 - progress * 160, when);
-    osc.frequency.exponentialRampToValueAtTime(70, when + (isFinal ? 0.045 : 0.018));
+    osc.type = isFinal ? "triangle" : "sawtooth";
+    osc.frequency.setValueAtTime(isFinal ? 180 : 420 - progress * 180, when);
+    osc.frequency.exponentialRampToValueAtTime(70, when + (isFinal ? 0.06 : 0.024));
 
-    const vol = isFinal ? 0.38 : Math.max(0.08, 0.24 * (1 - progress * 0.45));
+    // Very loud but kept below clipping by fading quickly.
+    const vol = isFinal ? 1.5 : Math.max(0.16, 0.9 * (1 - progress * 0.5));
     gain.gain.setValueAtTime(vol, when);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + (isFinal ? 0.055 : 0.022));
+    gain.gain.exponentialRampToValueAtTime(0.001, when + (isFinal ? 0.085 : 0.026));
 
     osc.connect(filter);
     filter.connect(gain);
