@@ -1374,8 +1374,7 @@ main {
   }
 
   #results.screen {
-    display: block !important;
-    width: 100%;
+    display: none !important;
   }
 
   .report-header,
