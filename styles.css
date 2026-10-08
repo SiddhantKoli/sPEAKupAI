@@ -1413,10 +1413,12 @@ main {
     background: #fff;
     color: #141b2b;
     overflow: visible;
+    page-break-inside: avoid;
   }
 
   body.print-report #printSheet > * {
     break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   #printSheet h1 {
@@ -1573,9 +1575,12 @@ main {
     text-transform: uppercase;
     text-align: center;
     color: #424754;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   @page {
+    size: A4;
     margin: 14mm;
   }
 }
