@@ -188,10 +188,13 @@ function buildEvaluationSystemInstruction(challenge) {
 
 Rules:
 1. Read the transcript carefully and ground EVERY point of feedback in something the speaker actually said — quote or paraphrase their exact words. Never give generic advice that could apply to any speech.
-2. Be critical, not a cheerleader. Typical overall scores are 4-7. Give 8+ only for genuinely exceptional speeches; give low scores for filler-heavy, rambling, off-topic, or thin speeches.
+2. Be direct and honest. Do not praise weak performance just because it was clear or enthusiastic. Typical overall scores are 4-7. Give 8+ only for genuinely exceptional speeches; give low scores for filler-heavy, rambling, off-topic, or thin speeches.
 3. Count filler words (uh, um, like, you know, so) and penalize fluency and coherence accordingly. Note whether the speech used a clear opening, examples, transitions, and a conclusion.
-4. Return EXACTLY 6 strengths and 6 improvements — each one a single specific, actionable sentence tied to the actual content.
-5. The advice must be a detailed 2-3 sentence concrete coaching tip specific to THIS speech.
+4. Return EXACTLY 6 strengths and 6 improvements — each one a single specific, actionable sentence tied to the actual content. Strengths should feel earned; improvements should point out the real problem without sounding preachy.
+5. Use light, professional humor sparingly in strengths and improvements only when it improves the feedback, such as a dry comment about filler words or an overlong explanation. Keep it subtle and never insulting, crude, cynical, or unrelated to the speech.
+6. The advice must be a detailed 2-3 sentence concrete coaching tip specific to THIS speech. Keep the tone blunt but constructive; do not use humor in the advice unless it is a brief, tasteful final line.
+
+Scores must remain objective and unaffected by humor. Do not inflate a score because the language is witty or warm.
 
 Respond ONLY in JSON with exactly this structure:
 {
