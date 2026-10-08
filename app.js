@@ -261,6 +261,9 @@ const prompts = {
 
 const STORAGE_KEY = "speakup-history";
 const THEME_KEY = "speakup-theme";
+const PREP_SECONDS = 10;
+const PREP_RING = 2 * Math.PI * 52;
+const FLOW_PAGES = new Set(["tumbler", "prepare", "speaking", "processing"]);
 const fillerPatterns = [
   "um",
   "uh",
@@ -300,11 +303,13 @@ const state = {
   isRecording: false,
   autoEvaluateAfterStop: false,
   timerId: null,
+  prepId: null,
+  tumblerFrame: null,
   transcribeProgressId: null,
   startedAt: null,
   remaining: 60,
   history: loadHistory(),
-  activeModalResult: null
+  activeResult: null
 };
 
 const el = {
@@ -313,41 +318,49 @@ const el = {
   mode: document.querySelector("#mode"),
   difficulty: document.querySelector("#difficulty"),
   duration: document.querySelector("#duration"),
-  difficultyGroup: document.querySelector("#difficultyGroup"),
   durationGroup: document.querySelector("#durationGroup"),
   customTimerGroup: document.querySelector("#customTimerGroup"),
   customComplexityGroup: document.querySelector("#customComplexityGroup"),
   customSeconds: document.querySelector("#customSeconds"),
   customComplexity: document.querySelector("#customComplexity"),
-  challengeKind: document.querySelector("#challengeKind"),
-  challengeText: document.querySelector("#challengeText"),
-  challengeBrief: document.querySelector("#challengeBrief"),
-  challengeDifficulty: document.querySelector("#challengeDifficulty"),
-  challengeTime: document.querySelector("#challengeTime"),
-  heroKicker: document.querySelector("#heroKicker"),
-  heroLead: document.querySelector("#heroLead"),
-  newChallenge: document.querySelector("#newChallenge"),
-  startRecording: document.querySelector("#startRecording"),
+  startSession: document.querySelector("#startSession"),
+  setup: document.querySelector("#setup"),
+  tumblerTrack: document.querySelector("#tumblerTrack"),
+  tumblerHint: document.querySelector("#tumblerHint"),
+  prepTopic: document.querySelector("#prepTopic"),
+  prepCount: document.querySelector("#prepCount"),
+  prepBar: document.querySelector("#prepBar"),
+  prepRing: document.querySelector("#prepRing"),
+  speakTopic: document.querySelector("#speakTopic"),
   stopRecording: document.querySelector("#stopRecording"),
-  retryChallenge: document.querySelector("#retryChallenge"),
-  mobileStart: document.querySelector("#mobileStart"),
   transcript: document.querySelector("#transcript"),
   evaluate: document.querySelector("#evaluate"),
   timer: document.querySelector("#timer"),
   recordingState: document.querySelector("#recordingState"),
   waveform: document.querySelector("#waveform"),
-  overallScore: document.querySelector("#overallScore") || document.createElement("strong"),
-  scoreSummary: document.querySelector("#scoreSummary") || document.createElement("p"),
-  rubricGrid: document.querySelector("#rubricGrid") || document.createElement("div"),
-  strengths: document.querySelector("#strengths") || document.createElement("ul"),
-  improvements: document.querySelector("#improvements") || document.createElement("ul"),
-  retryAdvice: document.querySelector("#retryAdvice") || document.createElement("p"),
+  processingTitle: document.querySelector("#processingTitle"),
+  processingHeadline: document.querySelector("#processingHeadline"),
+  transcribeProgress: document.querySelector("#transcribeProgress"),
+  transcribeProgressLabel: document.querySelector("#transcribeProgressLabel"),
+  transcribeMeter: document.querySelector("#transcribeMeter"),
+  transcribeMeterFill: document.querySelector("#transcribeMeterFill"),
+  overallScore: document.querySelector("#overallScore"),
+  scoreSummary: document.querySelector("#scoreSummary"),
+  rubricGrid: document.querySelector("#rubricGrid"),
+  strengths: document.querySelector("#strengths"),
+  improvements: document.querySelector("#improvements"),
+  retryAdvice: document.querySelector("#retryAdvice"),
+  resultKind: document.querySelector("#resultKind"),
+  resultTopic: document.querySelector("#resultTopic"),
+  resultDifficulty: document.querySelector("#resultDifficulty"),
+  resultSection: document.querySelector("#resultSection"),
+  resultDuration: document.querySelector("#resultDuration"),
+  resultDate: document.querySelector("#resultDate"),
+  resultTranscript: document.querySelector("#resultTranscript"),
   totalSpeeches: document.querySelector("#totalSpeeches"),
   bestScore: document.querySelector("#bestScore"),
   totalTime: document.querySelector("#totalTime"),
   avgPace: document.querySelector("#avgPace"),
-  navAverage: document.querySelector("#navAverage"),
-  navStreak: document.querySelector("#navStreak"),
   coachHeadline: document.querySelector("#coachHeadline"),
   coachBody: document.querySelector("#coachBody"),
   coachChallenge: document.querySelector("#coachChallenge"),
@@ -355,25 +368,10 @@ const el = {
   historyList: document.querySelector("#historyList"),
   trends: document.querySelector("#trendGrid"),
   themeToggle: document.querySelector("#themeToggle"),
-  mobileThemeToggle: document.querySelector("#mobileThemeToggle"),
-  transcribeProgress: document.querySelector("#transcribeProgress"),
-  transcribeProgressLabel: document.querySelector("#transcribeProgressLabel"),
-  transcribeMeter: document.querySelector("#transcribeMeter"),
-  transcribeMeterFill: document.querySelector("#transcribeMeterFill"),
-  
-  // Modal overlays
-  resultModal: document.querySelector("#resultModal"),
-  closeModal: document.querySelector("#closeModal"),
-  exportPng: document.querySelector("#exportPng"),
   exportPdf: document.querySelector("#exportPdf"),
   printSheet: document.querySelector("#printSheet"),
-  modalTitle: document.querySelector("#modalTitle"),
-  modalOverallScore: document.querySelector("#modalOverallScore"),
-  modalScoreSummary: document.querySelector("#modalScoreSummary"),
-  modalRubricGrid: document.querySelector("#modalRubricGrid"),
-  modalStrengths: document.querySelector("#modalStrengths"),
-  modalImprovements: document.querySelector("#modalImprovements"),
-  modalRetryAdvice: document.querySelector("#modalRetryAdvice")
+  practiceAgain: document.querySelector("#practiceAgain"),
+  viewHistory: document.querySelector("#viewHistory")
 };
 
 function pick(items) {
@@ -382,10 +380,9 @@ function pick(items) {
 
 function syncCustomControls() {
   const custom = isCustomDifficulty();
-  el.difficultyGroup.hidden = custom;
-  el.durationGroup.hidden = custom;
-  el.customTimerGroup.hidden = !custom;
-  el.customComplexityGroup.hidden = !custom;
+  if (el.durationGroup) el.durationGroup.hidden = custom;
+  if (el.customTimerGroup) el.customTimerGroup.hidden = !custom;
+  if (el.customComplexityGroup) el.customComplexityGroup.hidden = !custom;
 }
 
 function isCustomDifficulty() {
@@ -408,6 +405,39 @@ function effectiveDuration() {
   return isCustomDifficulty() ? clampCustomSeconds() : Number(el.duration.value);
 }
 
+function setupReady() {
+  return Boolean(el.mode.value && el.difficulty.value && (isCustomDifficulty() || el.duration.value));
+}
+
+function syncStartButton() {
+  syncCustomControls();
+  el.startSession.disabled = !setupReady();
+}
+
+function selectChoice(selector, attr, value) {
+  document.querySelectorAll(selector).forEach((button) => {
+    button.setAttribute("aria-checked", String(button.getAttribute(attr) === String(value)));
+  });
+}
+
+function setDifficulty(value) {
+  el.difficulty.value = value;
+  selectChoice("[data-difficulty]", "data-difficulty", value);
+  syncStartButton();
+}
+
+function setMode(value) {
+  el.mode.value = value;
+  selectChoice("[data-mode]", "data-mode", value);
+  syncStartButton();
+}
+
+function setDuration(value) {
+  el.duration.value = String(value);
+  selectChoice("[data-duration]", "data-duration", String(value));
+  syncStartButton();
+}
+
 function generateChallenge(forceMode, forceDifficulty) {
   const mode = forceMode || el.mode.value;
   const custom = !forceMode && isCustomDifficulty();
@@ -423,129 +453,324 @@ function generateChallenge(forceMode, forceDifficulty) {
     label: prompts[mode].label
   };
   state.remaining = duration;
-
-  el.challengeKind.textContent = prompts[mode].label;
-  el.challengeText.textContent = text;
-  el.challengeDifficulty.textContent = custom ? "Custom" : difficulty;
-  el.challengeTime.textContent = `${duration} seconds`;
-  el.challengeBrief.textContent = briefFor(mode, duration);
-  applyModeCopy(mode);
   el.timer.textContent = formatTime(duration);
+  setTopicDisplays(text);
   syncCustomControls();
-  scheduleFitChallengeText();
 }
 
-function scheduleFitChallengeText() {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => fitChallengeText());
-  });
-}
-
-function fitChallengeText() {
-  const title = el.challengeText;
-  if (!title) return;
-
-  title.classList.remove("prompt-medium", "prompt-long");
-  title.style.fontSize = "";
-  title.style.maxHeight = "";
-
-  const panel = title.closest(".challenge-panel");
-  if (!panel || panel.clientHeight < 48 || title.clientWidth < 40) {
-    return;
-  }
-
-  const panelStyle = getComputedStyle(panel);
-  const padY = parseFloat(panelStyle.paddingTop) + parseFloat(panelStyle.paddingBottom);
-  let reserved = 0;
-  for (const child of panel.children) {
-    if (child === title) continue;
-    const childStyle = getComputedStyle(child);
-    reserved += child.getBoundingClientRect().height;
-    reserved += parseFloat(childStyle.marginTop) + parseFloat(childStyle.marginBottom);
-  }
-
-  const titleStyle = getComputedStyle(title);
-  const titleMargin = parseFloat(titleStyle.marginTop) + parseFloat(titleStyle.marginBottom);
-  const available = Math.max(36, panel.clientHeight - padY - reserved - titleMargin);
-  title.style.maxHeight = `${available}px`;
-  title.style.lineHeight = "1.05";
-
-  const rootSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const maxSize = Math.min(
-    window.innerWidth <= 620 ? 3 * rootSize : 4.8 * rootSize,
-    title.clientWidth * 0.42
-  );
-  const minSize = Math.max(12, 0.9 * rootSize);
-
-  title.style.fontSize = `${maxSize}px`;
-
-  const fits = () =>
-    title.scrollHeight <= available + 1 &&
-    title.scrollWidth <= title.clientWidth + 1;
-
-  if (fits()) return;
-
-  let low = minSize;
-  let high = maxSize;
-  for (let i = 0; i < 18; i += 1) {
-    const mid = (low + high) / 2;
-    title.style.fontSize = `${mid}px`;
-    if (fits()) low = mid;
-    else high = mid;
-  }
-
-  title.style.fontSize = `${low}px`;
-}
-
-const modeCopy = {
-  word: {
-    kicker: "What will you talk about today?",
-    lead: "Boom — one random word hits the panel. Clock’s ticking. Make it funny, clear, and impossible to forget."
-  },
-  topic: {
-    kicker: "Hot take incoming!",
-    lead: "A question crashes onto the page. Grab a side, talk loud, and sell it like the last panel before the cliffhanger."
-  },
-  situation: {
-    kicker: "Action scene: YOU.",
-    lead: "You’re dropped mid-plot. Talk like the stakes are real — calm hero energy, zero wooden dialogue."
-  },
-  debate: {
-    kicker: "Choose your fighter!",
-    lead: "Left side? Right side? Plant a flag, throw reasons like punches, and finish with a KO closing line."
-  },
-  interview: {
-    kicker: "Welcome to the hot seat!",
-    lead: "The interviewer leans in. Answer like a pro: clean structure, real examples, no awkward comic silence."
-  },
-  followup: {
-    kicker: "Plot twist follow-up!",
-    lead: "They asked again — sharper this time. React fast, stay on plot, and don’t let the sequel flop."
-  }
-};
-
-function applyModeCopy(mode) {
-  const copy = modeCopy[mode] || modeCopy.word;
-  if (el.heroKicker) el.heroKicker.textContent = copy.kicker;
-  if (el.heroLead) el.heroLead.textContent = copy.lead;
-}
-
-function briefFor(mode, duration) {
-  const map = {
-    word: `You’ve got ${duration} seconds. Spin that word into a mini comic — clear, punchy, no filler villains.`,
-    topic: `${duration} seconds on the clock. One bold claim, one reason, one example — then BOOM, land it.`,
-    situation: `${duration} seconds in character. Sound human, specific, and totally in the scene.`,
-    debate: `${duration} seconds to argue. Stack reasons, drop an example, close with a KO.`,
-    interview: `${duration} seconds in the hot seat. Structured, concrete, zero waffle.`,
-    followup: `${duration} seconds for the sequel question. Clarify fast, defend clean, keep the plot alive.`
-  };
-  return map[mode];
+function setTopicDisplays(text) {
+  if (el.prepTopic) el.prepTopic.textContent = text;
+  if (el.speakTopic) el.speakTopic.textContent = text;
 }
 
 function formatTime(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0");
   const sec = String(seconds % 60).padStart(2, "0");
   return `${min}:${sec}`;
+}
+
+function reducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+async function primeMicrophone() {
+  if (state.mediaStream) return true;
+  try {
+    state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return true;
+  } catch {
+    state.mediaStream = null;
+    return false;
+  }
+}
+
+function releaseMicrophone() {
+  if (state.isRecording) return;
+  if (state.mediaStream) {
+    state.mediaStream.getTracks().forEach((track) => track.stop());
+    state.mediaStream = null;
+  }
+}
+
+async function beginSession() {
+  if (!setupReady()) return;
+  generateChallenge();
+  const micReady = await primeMicrophone();
+  if (!micReady) {
+    window.alert("Microphone access is needed to practice. Allow the mic, then press Start again.");
+    return;
+  }
+
+  let started = false;
+  const go = () => {
+    if (started) return;
+    started = true;
+    getSfxContext();
+    el.setup.classList.remove("is-leaving");
+    showPage("tumbler");
+    runTumbler();
+  };
+
+  if (reducedMotion()) {
+    go();
+    return;
+  }
+
+  el.setup.classList.add("is-leaving");
+  const finish = () => {
+    el.setup.removeEventListener("animationend", finish);
+    go();
+  };
+  el.setup.addEventListener("animationend", finish);
+  window.setTimeout(finish, 500);
+}
+
+// ==========================================
+// Web Audio API Sound Effects
+// ==========================================
+let sfxAudioCtx = null;
+
+function getSfxContext() {
+  try {
+    if (!sfxAudioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        sfxAudioCtx = new AudioCtx();
+      }
+    }
+    if (sfxAudioCtx && sfxAudioCtx.state === "suspended") {
+      sfxAudioCtx.resume().catch(() => {});
+    }
+    return sfxAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+// 1. Tumbler rolling sound: realistic ratchet/slot-wheel mechanical clicks that decelerate smoothly
+function playTumblerRollSound(durationMs = 4000) {
+  const ctx = getSfxContext();
+  if (!ctx) return;
+
+  try {
+    const startTime = ctx.currentTime;
+    const durationSec = durationMs / 1000;
+    const endTime = startTime + durationSec;
+
+    let when = startTime;
+    let step = 0.055; // 55ms rapid start
+
+    while (when < endTime - 0.15) {
+      const progress = (when - startTime) / durationSec;
+      scheduleMechanicalClick(ctx, when, progress, false);
+      // Decelerate naturally like a spinning mechanical wheel
+      step = 0.055 + Math.pow(progress, 2.8) * 0.42;
+      when += step;
+    }
+
+    // Final satisfying latch lock click right when stopping
+    scheduleMechanicalClick(ctx, endTime - 0.08, 1, true);
+  } catch {}
+}
+
+function scheduleMechanicalClick(ctx, when, progress, isFinal) {
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(isFinal ? 850 : 1250 - progress * 450, when);
+    filter.Q.setValueAtTime(isFinal ? 4 : 2, when);
+
+    osc.type = isFinal ? "triangle" : "sine";
+    osc.frequency.setValueAtTime(isFinal ? 200 : 360 - progress * 160, when);
+    osc.frequency.exponentialRampToValueAtTime(70, when + (isFinal ? 0.045 : 0.018));
+
+    const vol = isFinal ? 0.38 : Math.max(0.08, 0.24 * (1 - progress * 0.45));
+    gain.gain.setValueAtTime(vol, when);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + (isFinal ? 0.055 : 0.022));
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(when);
+    osc.stop(when + (isFinal ? 0.06 : 0.025));
+  } catch {}
+}
+
+// 2. Stopwatch countdown timer sound:
+// For 10 down to 4: crisp woodblock / digital stopwatch tick
+// For 3, 2, 1: urgent warning countdown beep
+function playCountdownTick(isLow = false) {
+  const ctx = getSfxContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    if (isLow) {
+      // High-pitched warning countdown beep (for 3, 2, 1)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1250, now);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+    } else {
+      // Crisp stopwatch click / tick (for 10 down to 4)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(240, now + 0.032);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.042);
+    }
+  } catch {}
+}
+
+// 3. Start speaking sound effect: "TING!" boxing bell / resonant chime buzzer
+function playStartChime() {
+  const ctx = getSfxContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+    // Layered resonant bell harmonics for a crisp, punchy "TING!"
+    const frequencies = [1046.5, 2093.0, 3135.9]; // C6 + octave + 5th overtone
+    const volumes = [0.42, 0.26, 0.14];
+    const decays = [1.25, 0.85, 0.45];
+
+    frequencies.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = idx === 0 ? "sine" : "triangle";
+      osc.frequency.setValueAtTime(freq, now);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(volumes[idx], now + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decays[idx]);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + decays[idx] + 0.05);
+    });
+  } catch {}
+}
+
+// ==========================================
+// Tumbler & Prep Flow
+// ==========================================
+function runTumbler() {
+  if (state.tumblerFrame) cancelAnimationFrame(state.tumblerFrame);
+  const challenge = state.challenge;
+  const pool = [...prompts[challenge.mode][effectiveDifficulty()]];
+  const winner = challenge.text;
+  const others = pool.filter((item) => item !== winner);
+
+  const N = 30;
+  const reel = [];
+  for (let i = 0; i < N - 2; i += 1) {
+    reel.push(others.length ? others[i % others.length] : winner);
+  }
+  const winIdx = N - 2;
+  reel.push(winner);
+  reel.push(others.length ? others[0] : winner);
+
+  el.tumblerTrack.style.transition = "none";
+  el.tumblerTrack.style.transform = "translateY(0)";
+  el.tumblerTrack.innerHTML = reel
+    .map((item, idx) => `<div class="item" id="reelItem${idx}">${escapeHtml(item)}</div>`)
+    .join("");
+  el.tumblerHint.textContent = "Spinning a prompt…";
+
+  // Force layout to calculate exact row height
+  void el.tumblerTrack.offsetWidth;
+  const firstItem = el.tumblerTrack.querySelector(".item");
+  const rowHeight = firstItem ? firstItem.offsetHeight : 78;
+  const target = -(winIdx - 1) * rowHeight;
+
+  // Play tumbler rolling mechanical sound effect
+  playTumblerRollSound(4000);
+
+  if (reducedMotion()) {
+    el.tumblerTrack.style.transform = `translateY(${target}px)`;
+    const winItem = document.getElementById(`reelItem${winIdx}`);
+    if (winItem) winItem.classList.add("win");
+    el.tumblerHint.textContent = "Your topic";
+    window.setTimeout(startPrepare, 600);
+    return;
+  }
+
+  // Smooth slot-machine reel spin with cubic-bezier over 4s
+  el.tumblerTrack.style.transition = "transform 4s cubic-bezier(.12, .72, .14, 1)";
+  el.tumblerTrack.style.transform = `translateY(${target}px)`;
+
+  window.setTimeout(() => {
+    const winItem = document.getElementById(`reelItem${winIdx}`);
+    if (winItem) winItem.classList.add("win");
+    el.tumblerHint.textContent = "Your topic";
+  }, 3900);
+
+  window.setTimeout(() => {
+    startPrepare();
+  }, 5000);
+}
+
+function startPrepare() {
+  showPage("prepare");
+  setTopicDisplays(state.challenge.text);
+  let remaining = PREP_SECONDS;
+  el.prepCount.textContent = String(remaining);
+  el.prepCount.classList.remove("low");
+
+  if (el.prepBar) {
+    el.prepBar.style.transition = "none";
+    el.prepBar.style.transform = "scaleX(1)";
+    void el.prepBar.offsetWidth;
+    el.prepBar.style.transition = `transform ${PREP_SECONDS}s linear`;
+    el.prepBar.style.transform = "scaleX(0)";
+  }
+
+  // Initial countdown tick sound
+  playCountdownTick(false);
+
+  clearInterval(state.prepId);
+  state.prepId = setInterval(() => {
+    remaining -= 1;
+    el.prepCount.textContent = String(Math.max(remaining, 0));
+    if (remaining <= 3) {
+      el.prepCount.classList.add("low");
+    } else {
+      el.prepCount.classList.remove("low");
+    }
+
+    if (remaining > 0) {
+      playCountdownTick(remaining <= 3);
+    } else {
+      clearInterval(state.prepId);
+      // Play the "TING!" start bell buzzer chime sound
+      playStartChime();
+      beginSpeaking();
+    }
+  }, 1000);
+}
+
+async function beginSpeaking() {
+  showPage("speaking");
+  setTopicDisplays(state.challenge.text);
+  await startRecording();
 }
 
 async function startRecording() {
@@ -557,20 +782,20 @@ async function startRecording() {
   state.remaining = state.challenge.duration;
   state.isRecording = true;
   setRecordingUi(true);
-  el.transcript.value = "On air… spill the speech bubbles! After Stop, the transcript lands here.";
 
   startTimer();
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    state.mediaStream = stream;
-    startWaveform(stream);
+    if (!state.mediaStream) {
+      state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    startWaveform(state.mediaStream);
     startSpeechRecognition();
 
     const mimeType = pickRecorderMimeType();
     state.recorder = mimeType
-      ? new MediaRecorder(stream, { mimeType })
-      : new MediaRecorder(stream);
+      ? new MediaRecorder(state.mediaStream, { mimeType })
+      : new MediaRecorder(state.mediaStream);
 
     state.recorder.addEventListener("dataavailable", (event) => {
       if (event.data && event.data.size > 0) state.audioChunks.push(event.data);
@@ -585,13 +810,12 @@ async function startRecording() {
       state.audioBlob = new Blob(state.audioChunks, { type });
       await transcribeRecordedAudio(state.autoEvaluateAfterStop);
     });
-    // Timeslice keeps chunks flowing so the final blob is never empty.
     state.recorder.start(1000);
   } catch (error) {
     state.isRecording = false;
     stopWaveform();
     appendNotice("Microphone access was blocked. You can still type or paste a transcript.");
-    stopRecording(false);
+    stopRecording(true);
   }
 }
 
@@ -610,7 +834,7 @@ function startWaveform(stream) {
   stopWaveform();
 
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
+  if (!AudioContextClass || !el.waveform) return;
 
   const audioContext = new AudioContextClass();
   const analyser = audioContext.createAnalyser();
@@ -642,7 +866,6 @@ function startWaveform(stream) {
       let sum = 0;
       for (let bin = start; bin < end; bin += 1) sum += frequencyData[bin];
       const average = sum / (end - start);
-      // Boost mid/voice range so quiet speech still moves the bars.
       const normalized = Math.min(1, Math.pow(average / 180, 0.85));
       const target = 0.3 + normalized * 3.5;
       state.waveformLevels[index] += (target - state.waveformLevels[index]) * 0.45;
@@ -669,7 +892,9 @@ function stopWaveform() {
 
   const bars = state.waveformBars.length
     ? state.waveformBars
-    : [...el.waveform.querySelectorAll("span")];
+    : el.waveform
+      ? [...el.waveform.querySelectorAll("span")]
+      : [];
   bars.forEach((bar) => {
     bar.style.transform = "scaleY(0.35)";
   });
@@ -702,7 +927,6 @@ function startSpeechRecognition() {
   };
 
   recognition.onerror = (event) => {
-    // These are normal while sharing the mic with MediaRecorder; keep recording.
     if (["no-speech", "aborted", "audio-capture"].includes(event.error)) return;
   };
 
@@ -752,6 +976,7 @@ function stopRecording(autoEvaluate) {
   }
 
   if (state.recorder && state.recorder.state !== "inactive") {
+    if (autoEvaluate) showProcessing("Transcribing", "Inking transcript…");
     state.recorder.stop();
   } else {
     stopWaveform();
@@ -767,23 +992,22 @@ function stopRecording(autoEvaluate) {
 }
 
 function setRecordingUi(isRecording) {
-  el.startRecording.disabled = isRecording;
-  el.mobileStart.disabled = isRecording;
-  el.stopRecording.disabled = !isRecording;
-  el.mode.disabled = isRecording;
-  el.difficulty.disabled = isRecording;
-  el.duration.disabled = isRecording;
-  el.customSeconds.disabled = isRecording;
-  el.customComplexity.disabled = isRecording;
-  el.newChallenge.disabled = isRecording;
+  if (el.stopRecording) el.stopRecording.disabled = !isRecording;
+  if (el.startSession) el.startSession.disabled = isRecording || !setupReady();
   el.recordingState.textContent = isRecording ? "On air" : "Ready";
   el.recordingState.classList.toggle("recording", isRecording);
-  el.waveform.classList.toggle("is-live", isRecording);
+  if (el.waveform) el.waveform.classList.toggle("is-live", isRecording);
 }
 
 function appendNotice(message) {
   const current = el.transcript.value.trim();
   el.transcript.value = current ? `${current}\n\n[${message}]` : `[${message}]`;
+}
+
+function showProcessing(title, headline) {
+  showPage("processing");
+  if (el.processingTitle) el.processingTitle.textContent = title;
+  if (el.processingHeadline) el.processingHeadline.textContent = headline;
 }
 
 async function transcribeRecordedAudio(autoEvaluate) {
@@ -798,7 +1022,8 @@ async function transcribeRecordedAudio(autoEvaluate) {
   const previewTranscript = sanitizeTranscript(el.transcript.value);
   el.recordingState.textContent = "Transcribing";
   el.transcript.value = previewTranscript;
-  el.scoreSummary.textContent = "Inking your speech bubbles… hold for the reveal!";
+  showProcessing("Transcribing", "Inking transcript…");
+  if (el.scoreSummary) el.scoreSummary.textContent = "Inking your speech bubbles… hold for the reveal!";
   startTranscribeProgress();
 
   try {
@@ -814,28 +1039,31 @@ async function transcribeRecordedAudio(autoEvaluate) {
     if (!response.ok) {
       if (result.code === "no_api_key") {
         if (previewTranscript) {
-          // No transcription key configured — keep the browser's live
-          // SpeechRecognition transcript as the final one instead of failing.
           el.transcript.value = previewTranscript;
-          el.scoreSummary.textContent = "Using the browser's speech-recognition transcript. Add GEMINI_API_KEY or OPENAI_API_KEY to .env for higher-accuracy cloud transcription.";
+          if (el.scoreSummary) {
+            el.scoreSummary.textContent = "Using the browser's speech-recognition transcript. Add GEMINI_API_KEY or OPENAI_API_KEY to .env for higher-accuracy cloud transcription.";
+          }
         } else {
-          // No key AND the browser's speech service captured nothing.
           el.transcript.value = "";
-          el.scoreSummary.textContent = "No speech was recognized. The browser's speech service captured nothing — add GEMINI_API_KEY or OPENAI_API_KEY to .env for cloud transcription, or record in Chrome/Edge with the microphone allowed.";
+          if (el.scoreSummary) {
+            el.scoreSummary.textContent = "No speech was recognized. The browser's speech service captured nothing — add GEMINI_API_KEY or OPENAI_API_KEY to .env for cloud transcription, or record in Chrome/Edge with the microphone allowed.";
+          }
         }
       } else {
-        el.scoreSummary.textContent = result.error || "Transcription failed.";
+        if (el.scoreSummary) el.scoreSummary.textContent = result.error || "Transcription failed.";
         el.transcript.value = previewTranscript || `[${result.error || "Transcription failed."}]`;
       }
     } else {
       const text = (result.text || "").trim();
       el.transcript.value = text || previewTranscript || "[Transcription returned an empty transcript. Try speaking a bit louder or longer.]";
-      el.scoreSummary.textContent = text
-        ? "Transcript unlocked! Hit Evaluate and face the scorecard."
-        : "Transcription shrugged — empty transcript. Try louder or longer.";
+      if (el.scoreSummary) {
+        el.scoreSummary.textContent = text
+          ? "Transcript unlocked! Scoring your speech."
+          : "Transcription shrugged — empty transcript. Try louder or longer.";
+      }
     }
   } catch (error) {
-    el.scoreSummary.textContent = "Could not reach the transcription service. Is the server running?";
+    if (el.scoreSummary) el.scoreSummary.textContent = "Could not reach the transcription service. Is the server running?";
     el.transcript.value = previewTranscript || "[Could not reach the transcription service. Keep node server.js running.]";
   } finally {
     stopTranscribeProgress(true);
@@ -861,7 +1089,7 @@ function startTranscribeProgress() {
   el.transcribeProgressLabel.textContent = labels[0];
   el.transcribeMeterFill.style.width = `${progress}%`;
   el.transcribeMeter.setAttribute("aria-valuenow", String(progress));
-  el.evaluate.disabled = true;
+  if (el.evaluate) el.evaluate.disabled = true;
 
   state.transcribeProgressId = setInterval(() => {
     const remaining = 92 - progress;
@@ -889,18 +1117,16 @@ function stopTranscribeProgress(complete) {
     el.transcribeMeter.setAttribute("aria-valuenow", "100");
     el.transcribeProgressLabel.textContent = "Done";
     window.setTimeout(() => {
-      el.transcribeProgress.hidden = true;
       el.transcribeProgress.setAttribute("aria-busy", "false");
       el.transcribeMeterFill.style.width = "0%";
       el.transcribeMeter.setAttribute("aria-valuenow", "0");
-      el.evaluate.disabled = false;
+      if (el.evaluate) el.evaluate.disabled = false;
     }, 320);
   } else {
-    el.transcribeProgress.hidden = true;
     el.transcribeProgress.setAttribute("aria-busy", "false");
     el.transcribeMeterFill.style.width = "0%";
     el.transcribeMeter.setAttribute("aria-valuenow", "0");
-    el.evaluate.disabled = false;
+    if (el.evaluate) el.evaluate.disabled = false;
   }
 }
 
@@ -915,7 +1141,8 @@ function sanitizeTranscript(value) {
 async function evaluateCurrentSpeech() {
   const transcript = sanitizeTranscript(el.transcript.value);
   if (!transcript) {
-    el.scoreSummary.textContent = "Add a transcript first so the coach has something to evaluate.";
+    if (el.scoreSummary) el.scoreSummary.textContent = "Add a transcript first so the coach has something to evaluate.";
+    showPage("setup");
     return;
   }
 
@@ -923,8 +1150,9 @@ async function evaluateCurrentSpeech() {
     ? Math.max(1, Math.round((Date.now() - state.startedAt) / 1000))
     : state.challenge?.duration || 60;
 
-  el.scoreSummary.textContent = "Coach is scoring your transcript...";
-  el.evaluate.disabled = true;
+  showProcessing("Scoring", "Coach is scoring your transcript...");
+  if (el.scoreSummary) el.scoreSummary.textContent = "Coach is scoring your transcript...";
+  if (el.evaluate) el.evaluate.disabled = true;
 
   try {
     const controller = new AbortController();
@@ -949,7 +1177,6 @@ async function evaluateCurrentSpeech() {
       return;
     }
 
-    // Complete the missing structural details for saving
     const finalResult = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       date: new Date().toISOString(),
@@ -969,18 +1196,17 @@ async function evaluateCurrentSpeech() {
     };
 
     saveAttempt(finalResult);
-    el.scoreSummary.textContent = `Evaluated with ${labelForProvider(finalResult.provider)}.`;
     renderProgress();
     renderHistory();
-    showPage("history");
-    showResultModal(finalResult);
+    renderResult(finalResult);
+    showPage("results");
   } catch (error) {
     const message = error.name === "AbortError"
       ? "API analysis timed out. Used local scoring instead."
       : "API analysis unavailable. Used local scoring instead.";
     completeLocalEvaluation(transcript, duration, message);
   } finally {
-    el.evaluate.disabled = false;
+    if (el.evaluate) el.evaluate.disabled = false;
   }
 }
 
@@ -988,11 +1214,13 @@ function completeLocalEvaluation(transcript, duration, message) {
   const localResult = evaluateTranscript(transcript, duration, state.challenge);
   localResult.provider = "local";
   saveAttempt(localResult);
-  el.scoreSummary.textContent = message;
   renderProgress();
   renderHistory();
-  showPage("history");
-  showResultModal(localResult);
+  renderResult(localResult);
+  if (el.scoreSummary) {
+    el.scoreSummary.textContent = `${el.scoreSummary.textContent} ${message}`.trim();
+  }
+  showPage("results");
 }
 
 function labelForProvider(provider) {
@@ -1137,11 +1365,14 @@ function labelFor(key) {
 }
 
 function renderResult(result) {
+  state.activeResult = result;
+  const challenge = result.challenge || {};
   el.overallScore.textContent = result.overall.toFixed(1);
   const wordsCount = result.metrics.words;
   const wpmValue = result.metrics.wpm;
   const fillersValue = result.metrics.fillerCount !== undefined ? result.metrics.fillerCount : "calculated";
-  el.scoreSummary.textContent = `${wordsCount} words, ${wpmValue} WPM, ${fillersValue} filler words.`;
+  const source = result.provider ? ` Source: ${labelForProvider(result.provider)}.` : "";
+  el.scoreSummary.textContent = `${wordsCount} words, ${wpmValue} WPM, ${fillersValue} filler words.${source}`;
   el.rubricGrid.innerHTML = Object.entries(result.scores).map(([key, value]) => `
     <div class="rubric-item">
       <span>${labelFor(key)}</span>
@@ -1152,11 +1383,19 @@ function renderResult(result) {
   renderList(el.strengths, result.strengths);
   renderList(el.improvements, result.improvements);
   el.retryAdvice.textContent = result.advice;
+  if (el.resultKind) el.resultKind.textContent = challenge.label || "Report";
+  if (el.resultTopic) el.resultTopic.textContent = challenge.text || "—";
+  if (el.resultDifficulty) el.resultDifficulty.textContent = challenge.difficulty || "";
+  if (el.resultSection) el.resultSection.textContent = challenge.label || "";
+  if (el.resultDuration) el.resultDuration.textContent = `${challenge.duration || result.metrics.duration} seconds`;
+  if (el.resultDate) el.resultDate.textContent = new Date(result.date).toLocaleString();
+  if (el.resultTranscript) el.resultTranscript.textContent = result.transcript || "No transcript saved.";
   updateCoach(result);
 }
 
 function renderList(target, items) {
-  target.innerHTML = items.map((item) => `<li>${item}</li>`).join("");
+  if (!target) return;
+  target.innerHTML = (items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
 function saveAttempt(result) {
@@ -1177,19 +1416,18 @@ function renderProgress() {
   renderTrends();
   const attempts = state.history;
   if (!attempts.length) {
-    el.navAverage.textContent = "--";
-    el.navStreak.textContent = "0 day streak";
+    if (el.totalSpeeches) el.totalSpeeches.textContent = "0";
+    if (el.bestScore) el.bestScore.textContent = "--";
+    if (el.totalTime) el.totalTime.textContent = "0m";
+    if (el.avgPace) el.avgPace.textContent = "--";
     return;
   }
 
-  const average = round1(attempts.reduce((sum, item) => sum + item.overall, 0) / attempts.length);
   const best = Math.max(...attempts.map((item) => item.overall));
   const totalSeconds = attempts.reduce((sum, item) => sum + (item.metrics.duration || 0), 0);
   const validWpms = attempts.map((item) => item.metrics.wpm || 0).filter(Boolean);
   const avgPace = validWpms.length ? Math.round(validWpms.reduce((sum, v) => sum + v, 0) / validWpms.length) : "--";
 
-  el.navAverage.textContent = average.toFixed(1);
-  el.navStreak.textContent = `${calculateStreak(attempts)} day streak`;
   el.totalSpeeches.textContent = attempts.length;
   el.bestScore.textContent = best.toFixed(1);
   el.totalTime.textContent = `${Math.round(totalSeconds / 60)}m`;
@@ -1207,13 +1445,11 @@ function calculateStreak(attempts) {
   return streak;
 }
 
-// ---- Trends ----
-
 function renderTrends() {
   const container = el.trends;
   if (!container) return;
 
-  const attempts = [...state.history].reverse(); // oldest → newest, left to right
+  const attempts = [...state.history].reverse();
   if (!attempts.length) {
     container.innerHTML = '<div class="trend-empty"><p>Complete a few sessions to see your curves take shape.</p></div>';
     return;
@@ -1300,50 +1536,6 @@ function titleForTrend(values) {
   return `Trend across ${values.length} session${values.length === 1 ? "" : "s"}`;
 }
 
-function syncResultModalLayout() {
-  if (!el.resultModal) return;
-  const compact = window.innerWidth <= 620;
-  const results = el.resultModal.querySelector(".results");
-  const feedback = el.resultModal.querySelector(".modal-feedback");
-  if (results) results.style.gridTemplateColumns = compact ? "1fr" : "290px 1fr";
-  if (feedback) feedback.style.gridTemplateColumns = compact ? "1fr" : "repeat(3, minmax(0, 1fr))";
-}
-
-function showResultModal(result) {
-  if (!el.resultModal) return;
-  state.activeModalResult = result;
-  el.modalTitle.textContent = `${result.challenge.label.toUpperCase()}: ${result.challenge.text.toUpperCase()}`;
-  el.modalOverallScore.textContent = result.overall.toFixed(1);
-  const fillers = result.metrics.fillerCount !== undefined ? result.metrics.fillerCount : "calculated";
-  const source = result.provider ? ` Source: ${labelForProvider(result.provider)}.` : "";
-  el.modalScoreSummary.textContent = `${result.metrics.words} words, ${result.metrics.wpm} WPM, ${fillers} filler words.${source}`;
-
-  el.modalRubricGrid.innerHTML = Object.entries(result.scores).map(([key, value]) => `
-    <div class="rubric-item">
-      <span>${labelFor(key)}</span>
-      <strong>${value.toFixed(1)}</strong>
-      <div class="meter" aria-hidden="true"><div style="width: ${value * 10}%"></div></div>
-    </div>
-  `).join("");
-
-  renderList(el.modalStrengths, result.strengths);
-  renderList(el.modalImprovements, result.improvements);
-  el.modalRetryAdvice.textContent = result.advice;
-  syncResultModalLayout();
-
-  el.resultModal.hidden = false;
-  el.resultModal.style.display = "flex";
-}
-
-function hideResultModal() {
-  if (!el.resultModal) return;
-  state.activeModalResult = null;
-  el.resultModal.hidden = true;
-  el.resultModal.style.display = "none";
-}
-
-// ---- Report export: PNG image + Print / PDF ----
-
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (ch) => ({
     "&": "&amp;",
@@ -1371,9 +1563,6 @@ function loadReportLogo() {
     const img = new Image();
     img.onload = () => {
       state.reportLogo = img;
-      // Bake the logo into a data URL once: the print/PDF sheet and canvas export
-      // then get it instantly with no second network fetch (a fresh <img src>
-      // fetch races the print snapshot and shows an empty placeholder box).
       try {
         const c = document.createElement("canvas");
         c.width = img.naturalWidth;
@@ -1402,29 +1591,16 @@ function waitForImage(img, timeoutMs = 2500) {
   });
 }
 
-async function exportReportPng(result) {
-  const logo = await loadReportLogo();
-  const canvas = renderReportCanvas(result, logo);
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const filename = `speakup-report-${result.date.slice(0, 10)}.png`;
-    const file = new File([blob], filename, { type: "image/png" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: "SpeakUp AI report" }).catch(() => downloadBlob(blob, filename));
-    } else {
-      downloadBlob(blob, filename);
-    }
-  }, "image/png");
-}
-
 async function printReport(result) {
   if (!el.printSheet) return;
   el.printSheet.innerHTML = buildPrintMarkup(result);
-  // Make sure the logo is actually rendered before the print engine snapshots the
-  // page — otherwise the PDF shows an empty placeholder box instead of the logo.
   await loadReportLogo();
   const imgs = Array.from(el.printSheet.querySelectorAll("img"));
   await Promise.all(imgs.map(waitForImage));
+  document.body.classList.add("print-report");
+  const cleanup = () => document.body.classList.remove("print-report");
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.setTimeout(cleanup, 2000);
   window.print();
 }
 
@@ -1478,265 +1654,6 @@ function buildPrintMarkup(result) {
   `;
 }
 
-function renderReportCanvas(result, logo) {
-  const dpr = 2;
-  const W = 1200;
-  const FONTS = {
-    kicker: '800 24px "Courier New", monospace',
-    h1: '400 88px Impact, "Arial Narrow Bold", sans-serif',
-    tag: '800 22px "Courier New", monospace',
-    challenge: '400 50px Impact, "Arial Narrow Bold", sans-serif',
-    meta: '800 20px "Courier New", monospace',
-    body: '500 26px Inter, system-ui, sans-serif',
-    big: '400 128px Impact, "Arial Narrow Bold", sans-serif',
-    metric: '400 62px Impact, "Arial Narrow Bold", sans-serif',
-    small: '700 22px "Courier New", monospace',
-    list: '500 24px Inter, system-ui, sans-serif'
-  };
-  const C = {
-    ink: "#141b2b",
-    muted: "#424754",
-    paper: "#fffefd",
-    soft: "#e9edff",
-    yellow: "#ffe600",
-    blue: "#0058be",
-    white: "#ffffff"
-  };
-
-  // Measure pass: wrap text and compute block heights on a scratch canvas.
-  const scratch = document.createElement("canvas");
-  scratch.width = W * dpr;
-  scratch.height = 2000 * dpr;
-  const mctx = scratch.getContext("2d");
-  mctx.scale(dpr, dpr);
-
-  const widthOf = (text, font) => {
-    mctx.font = font;
-    return mctx.measureText(text).width;
-  };
-
-  const wrap = (text, font, maxWidth) => {
-    mctx.font = font;
-    const words = String(text).split(/\s+/);
-    const lines = [];
-    let line = "";
-    for (const word of words) {
-      const test = line ? `${line} ${word}` : word;
-      if (line && mctx.measureText(test).width > maxWidth) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = test;
-      }
-    }
-    if (line) lines.push(line);
-    return lines;
-  };
-
-  const padX = 40;
-  const contentW = W - padX * 2;
-  let y = 30;
-
-  const headerH = 168;
-  y += headerH + 24;
-
-  const challengeLines = wrap(result.challenge.text, FONTS.challenge, contentW - 64).slice(0, 3);
-  if (challengeLines.length === 3) {
-    challengeLines[2] = `${challengeLines[2].slice(0, -1)}…`;
-  }
-  const challengeH = 24 + 34 + 16 + challengeLines.length * 56 + 12 + 24 + 24;
-  y += challengeH + 24;
-
-  const scoreRowH = 240;
-  y += scoreRowH + 24;
-
-  const rubricRows = Object.entries(result.scores);
-  const rubricH = 44 + rubricRows.length * 52;
-  y += rubricH + 24;
-
-  const feedbackCardW = (contentW - 18) / 2;
-  const listLines = (items) => items.reduce((sum, item) => sum + wrap(item, FONTS.list, feedbackCardW - 60).length, 0);
-  const feedbackBodyLines = Math.max(listLines(result.strengths), listLines(result.improvements), 1);
-  const feedbackH = 70 + feedbackBodyLines * 36 + 36;
-  y += feedbackH + 24;
-
-  const adviceLines = wrap(result.advice, FONTS.body, contentW - 64);
-  const adviceH = 66 + adviceLines.length * 38 + 44;
-  y += adviceH + 24;
-
-  const footerH = 60;
-  const totalH = y + footerH + 30;
-
-  // Draw pass on the real canvas — restart the cursor at the top (the
-  // measure pass above left `y` pointing past the last block).
-  y = 30;
-  const canvas = document.createElement("canvas");
-  canvas.width = W * dpr;
-  canvas.height = totalH * dpr;
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = C.paper;
-  ctx.fillRect(0, 0, W, totalH);
-
-  const drawCard = (x, y0, w, h, fill) => {
-    ctx.fillStyle = C.ink;
-    ctx.fillRect(x + 10, y0 + 10, w, h);
-    ctx.fillStyle = fill;
-    ctx.fillRect(x, y0, w, h);
-    ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(x, y0, w, h);
-  };
-
-  const logoBoxX = padX + 32;
-  const logoBoxY = y + 22;
-  const titleX = logo ? logoBoxX + 104 : padX + 32;
-
-  const drawList = (items, x, y0, maxWidth, lineH, font) => {
-    ctx.font = font;
-    ctx.fillStyle = C.ink;
-    let cursor = y0;
-    for (const item of items) {
-      const lines = wrap(item, font, maxWidth - 26);
-      lines.forEach((line, index) => {
-        ctx.fillText(index === 0 ? `•  ${line}` : line, index === 0 ? x : x + 26, cursor);
-        cursor += lineH;
-      });
-    }
-  };
-
-  // Header
-  drawCard(padX, y, contentW, headerH, C.yellow);
-  ctx.font = FONTS.kicker;
-  ctx.fillStyle = C.blue;
-  if (logo) {
-    ctx.fillStyle = "#0d0d0d";
-    ctx.fillRect(logoBoxX, logoBoxY, 80, 80);
-    ctx.drawImage(logo, logoBoxX + 8, logoBoxY + 8, 64, 64);
-    ctx.fillStyle = C.blue;
-    ctx.fillText("SPEAKUP AI", logoBoxX + 104, y + 50);
-  } else {
-    ctx.fillText("SPEAKUP AI · SPEECH REPORT", padX + 32, y + 50);
-  }
-  ctx.font = FONTS.h1;
-  ctx.fillStyle = C.ink;
-  ctx.fillText("Speech Report", titleX, y + 128);
-  ctx.font = FONTS.small;
-  ctx.fillStyle = C.muted;
-  ctx.textAlign = "right";
-  ctx.fillText(new Date(result.date).toLocaleString(), padX + contentW - 32, y + 58);
-  ctx.fillText(`Source: ${labelForProvider(result.provider || "local")}`, padX + contentW - 32, y + 92);
-  ctx.textAlign = "left";
-  y += headerH + 24;
-
-  // Challenge
-  drawCard(padX, y, contentW, challengeH, C.paper);
-  const tagText = String(result.challenge.label).toUpperCase();
-  const tagWidth = widthOf(tagText, FONTS.tag) + 24;
-  ctx.fillStyle = C.blue;
-  ctx.fillRect(padX + 32, y + 24, tagWidth, 34);
-  ctx.font = FONTS.tag;
-  ctx.fillStyle = C.white;
-  ctx.fillText(tagText, padX + 32 + 12, y + 24 + 24);
-  ctx.font = FONTS.challenge;
-  ctx.fillStyle = C.ink;
-  challengeLines.forEach((line, index) => {
-    ctx.fillText(line, padX + 32, y + 24 + 34 + 16 + 56 * index + 44);
-  });
-  ctx.font = FONTS.meta;
-  ctx.fillStyle = C.muted;
-  ctx.fillText(`Difficulty ${result.challenge.difficulty} · ${result.challenge.duration} seconds`, padX + 32, y + challengeH - 24);
-  y += challengeH + 24;
-
-  // Score row
-  const overallW = 380;
-  const metricsW = contentW - overallW - 18;
-  drawCard(padX, y, overallW, scoreRowH, C.paper);
-  ctx.font = FONTS.kicker;
-  ctx.fillStyle = C.muted;
-  ctx.fillText("OVERALL SCORE", padX + 28, y + 52);
-  ctx.font = FONTS.big;
-  ctx.fillStyle = C.ink;
-  ctx.fillText(result.overall.toFixed(1), padX + 28, y + 172);
-  ctx.font = FONTS.small;
-  ctx.fillStyle = C.muted;
-  ctx.fillText("/ 10", padX + 28 + widthOf(result.overall.toFixed(1), FONTS.big) + 18, y + 172);
-
-  drawCard(padX + overallW + 18, y, metricsW, scoreRowH, C.paper);
-  const metrics = [
-    ["Words", result.metrics.words ?? "—"],
-    ["WPM", result.metrics.wpm ?? "—"],
-    ["Fillers", result.metrics.fillerCount ?? "—"]
-  ];
-  const colW = metricsW / 3;
-  metrics.forEach(([label, value], index) => {
-    const cx = padX + overallW + 18 + index * colW;
-    ctx.font = FONTS.kicker;
-    ctx.fillStyle = C.muted;
-    ctx.fillText(label.toUpperCase(), cx + 22, y + 58);
-    ctx.font = FONTS.metric;
-    ctx.fillStyle = C.ink;
-    ctx.fillText(String(value), cx + 22, y + 150);
-  });
-  y += scoreRowH + 24;
-
-  // Rubric
-  drawCard(padX, y, contentW, rubricH, C.paper);
-  ctx.font = FONTS.kicker;
-  ctx.fillStyle = C.muted;
-  ctx.fillText("RUBRIC", padX + 28, y + 36);
-  rubricRows.forEach(([key, value], index) => {
-    const ry = y + 52 + index * 52;
-    ctx.font = FONTS.list;
-    ctx.fillStyle = C.ink;
-    ctx.fillText(labelFor(key), padX + 28, ry + 31);
-    const barX = padX + 330;
-    const barW = contentW - 330 - 120;
-    ctx.fillStyle = C.soft;
-    ctx.fillRect(barX, ry + 8, barW, 22);
-    ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(barX, ry + 8, barW, 22);
-    ctx.fillStyle = C.blue;
-    ctx.fillRect(barX + 2, ry + 10, Math.max(0, (value / 10) * (barW - 4)), 18);
-    ctx.font = FONTS.small;
-    ctx.fillStyle = C.ink;
-    ctx.fillText(value.toFixed(1), barX + barW + 16, ry + 30);
-  });
-  y += rubricH + 24;
-
-  // Strengths / Improvements
-  drawCard(padX, y, feedbackCardW, feedbackH, C.paper);
-  ctx.font = FONTS.kicker;
-  ctx.fillStyle = C.ink;
-  ctx.fillText("STRENGTHS", padX + 28, y + 40);
-  drawList(result.strengths, padX + 28, y + 70, feedbackCardW - 56, 36, FONTS.list);
-  drawCard(padX + feedbackCardW + 18, y, feedbackCardW, feedbackH, C.paper);
-  ctx.fillText("IMPROVE NEXT", padX + feedbackCardW + 18 + 28, y + 40);
-  drawList(result.improvements, padX + feedbackCardW + 18 + 28, y + 70, feedbackCardW - 56, 36, FONTS.list);
-  y += feedbackH + 24;
-
-  // Advice
-  drawCard(padX, y, contentW, adviceH, C.yellow);
-  ctx.font = FONTS.kicker;
-  ctx.fillStyle = C.ink;
-  ctx.fillText("COACH'S ADVICE", padX + 28, y + 42);
-  ctx.font = FONTS.body;
-  adviceLines.forEach((line, index) => {
-    ctx.fillText(line, padX + 28, y + 66 + 38 * (index + 1));
-  });
-  y += adviceH + 24;
-
-  // Footer
-  ctx.font = FONTS.small;
-  ctx.fillStyle = C.muted;
-  ctx.textAlign = "center";
-  ctx.fillText("Generated with SpeakUp AI — practice impromptu speaking", W / 2, y + 40);
-
-  return canvas;
-}
-
 function renderHistory() {
   if (!state.history.length) {
     el.historyList.innerHTML = "<p>Empty archive — your first issue drops here after you speak.</p>";
@@ -1744,28 +1661,36 @@ function renderHistory() {
   }
 
   el.historyList.innerHTML = state.history.map((item) => `
-    <article class="history-item" data-history-id="${item.id}">
+    <article class="history-item" data-history-id="${item.id}" tabindex="0" role="button">
       <div>
-        <strong>${item.challenge.label}: ${item.challenge.text}</strong>
+        <strong>${escapeHtml(item.challenge.label)}: ${escapeHtml(item.challenge.text)}</strong>
         <span>${new Date(item.date).toLocaleString()} - ${item.metrics.words} words - ${labelForProvider(item.provider || "local")}</span>
       </div>
       <strong>${item.overall.toFixed(1)}/10</strong>
     </article>
   `).join("");
 
-  // Attach click listeners to history items
   el.historyList.querySelectorAll(".history-item").forEach((element) => {
-    element.addEventListener("click", () => {
+    const open = () => {
       const historyId = element.getAttribute("data-history-id");
       const matched = state.history.find((item) => item.id === historyId);
       if (matched) {
-        showResultModal(matched);
+        renderResult(matched);
+        showPage("results");
+      }
+    };
+    element.addEventListener("click", open);
+    element.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
       }
     });
   });
 }
 
 function updateCoach(result) {
+  if (!el.coachHeadline || !el.coachBody) return;
   const weakest = Object.entries(result.scores).sort((a, b) => a[1] - b[1])[0][0];
   el.coachHeadline.textContent = `Today's focus: ${labelFor(weakest)}`;
   el.coachBody.textContent = result.advice;
@@ -1778,27 +1703,32 @@ function clearHistory() {
   renderHistory();
 }
 
-function focusedPrompt() {
+async function focusedPrompt() {
   const latest = state.history[0];
   if (!latest) {
-    generateChallenge("topic", "Medium");
-    return;
+    setMode("topic");
+    setDifficulty("Medium");
+    if (!el.duration.value) setDuration("60");
+  } else {
+    const weakest = Object.entries(latest.scores).sort((a, b) => a[1] - b[1])[0][0];
+    const focusMap = {
+      coherence: ["topic", "Medium"],
+      structure: ["interview", "Medium"],
+      fluency: ["word", "Easy"],
+      vocabulary: ["word", "Hard"],
+      relevance: ["situation", "Medium"],
+      content: ["topic", "Hard"],
+      argument: ["debate", "Hard"]
+    };
+    const [mode, difficulty] = focusMap[weakest] || ["topic", "Medium"];
+    setMode(mode);
+    setDifficulty(difficulty);
+    if (!el.duration.value) setDuration("60");
   }
-  const weakest = Object.entries(latest.scores).sort((a, b) => a[1] - b[1])[0][0];
-  const focusMap = {
-    coherence: ["topic", "Medium"],
-    structure: ["interview", "Medium"],
-    fluency: ["word", "Easy"],
-    vocabulary: ["word", "Hard"],
-    relevance: ["situation", "Medium"],
-    content: ["topic", "Hard"],
-    argument: ["debate", "Hard"]
-  };
-  const [mode, difficulty] = focusMap[weakest] || ["topic", "Medium"];
-  el.mode.value = mode;
-  el.difficulty.value = difficulty;
-  generateChallenge(mode, difficulty);
-  showPage("practice");
+  generateChallenge(el.mode.value, effectiveDifficulty());
+  await primeMicrophone();
+  showPage("tumbler");
+  runTumbler();
 }
 
 function getPreferredTheme() {
@@ -1829,9 +1759,6 @@ function applyTheme(theme) {
     if (text) text.textContent = label;
     el.themeToggle.setAttribute("aria-label", aria);
   }
-  if (el.mobileThemeToggle) {
-    el.mobileThemeToggle.setAttribute("aria-label", aria);
-  }
 }
 
 function toggleTheme() {
@@ -1839,77 +1766,101 @@ function toggleTheme() {
   applyTheme(current === "dark" ? "light" : "dark");
 }
 
+function abortFlow() {
+  clearInterval(state.prepId);
+  if (state.tumblerFrame) cancelAnimationFrame(state.tumblerFrame);
+  if (state.isRecording) stopRecording(false);
+  else releaseMicrophone();
+}
+
 function showPage(pageName) {
-  const safePage = ["practice", "results", "progress", "history"].includes(pageName) ? pageName : "practice";
+  const aliases = { practice: "setup" };
+  const requested = aliases[pageName] || pageName;
+  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "results", "progress", "history"];
+  const safePage = known.includes(requested) ? requested : "setup";
+
+  if (!FLOW_PAGES.has(safePage)) abortFlow();
+
+  document.body.classList.toggle("flow-active", FLOW_PAGES.has(safePage));
+  el.setup?.classList.remove("is-leaving");
 
   el.pages.forEach((page) => {
     page.classList.toggle("active", page.dataset.page === safePage);
   });
+
   el.pageLinks.forEach((link) => {
-    const isActive = link.dataset.pageLink === safePage;
+    const isActive = link.dataset.pageLink === "setup"
+      ? safePage === "setup" || safePage === "results"
+      : link.dataset.pageLink === safePage;
     link.classList.toggle("active", isActive);
     if (isActive) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
 
-  if (location.hash !== `#${safePage}`) {
-    history.replaceState(null, "", `#${safePage}`);
+  document.querySelectorAll(".menu-more").forEach((node) => {
+    node.removeAttribute("open");
+  });
+
+  const hashPage = FLOW_PAGES.has(safePage) ? "setup" : safePage;
+  if (location.hash !== `#${hashPage}`) {
+    history.replaceState(null, "", `#${hashPage}`);
   }
 
-  if (safePage === "practice") scheduleFitChallengeText();
+  if (safePage === "results" || safePage === "history" || safePage === "progress") {
+    window.scrollTo(0, 0);
+  }
 }
 
 function showPageFromHash() {
-  showPage(location.hash.replace("#", "") || "practice");
+  const name = location.hash.replace("#", "") || "setup";
+  if (name === "results" && !state.activeResult && !state.history[0]) {
+    showPage("setup");
+    return;
+  }
+  if (name === "results" && !state.activeResult && state.history[0]) {
+    renderResult(state.history[0]);
+  }
+  showPage(name);
 }
 
-el.newChallenge.addEventListener("click", () => generateChallenge());
-el.retryChallenge.addEventListener("click", () => {
-  state.remaining = state.challenge.duration;
-  el.timer.textContent = formatTime(state.remaining);
-  el.transcript.focus();
-});
-el.startRecording.addEventListener("click", startRecording);
-el.mobileStart.addEventListener("click", startRecording);
-el.stopRecording.addEventListener("click", () => stopRecording(false));
+function bindChoiceGroup(selector, onPick) {
+  const buttons = [...document.querySelectorAll(selector)];
+  buttons.forEach((button, index) => {
+    button.addEventListener("click", () => onPick(button));
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      event.preventDefault();
+      const delta = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+      const next = buttons[(index + delta + buttons.length) % buttons.length];
+      next.focus();
+      onPick(next);
+    });
+  });
+}
+
+bindChoiceGroup("[data-difficulty]", (button) => setDifficulty(button.dataset.difficulty));
+bindChoiceGroup("[data-mode]", (button) => setMode(button.dataset.mode));
+bindChoiceGroup("[data-duration]", (button) => setDuration(button.dataset.duration));
+
+el.startSession.addEventListener("click", beginSession);
+el.stopRecording.addEventListener("click", () => stopRecording(true));
 el.evaluate.addEventListener("click", evaluateCurrentSpeech);
 el.coachChallenge.addEventListener("click", focusedPrompt);
 el.clearHistory.addEventListener("click", clearHistory);
-el.duration.addEventListener("change", () => generateChallenge());
-el.mode.addEventListener("change", () => generateChallenge());
-el.difficulty.addEventListener("change", () => generateChallenge());
-el.customSeconds.addEventListener("change", () => generateChallenge());
-el.customComplexity.addEventListener("change", () => generateChallenge());
+el.customSeconds.addEventListener("change", syncStartButton);
+el.customComplexity.addEventListener("change", syncStartButton);
 el.themeToggle.addEventListener("click", toggleTheme);
-el.mobileThemeToggle.addEventListener("click", toggleTheme);
-if (el.closeModal) el.closeModal.addEventListener("click", hideResultModal);
-if (el.exportPng) {
-  el.exportPng.addEventListener("click", () => {
-    if (state.activeModalResult) exportReportPng(state.activeModalResult);
-  });
-}
-if (el.exportPdf) {
-  el.exportPdf.addEventListener("click", () => {
-    if (state.activeModalResult) printReport(state.activeModalResult);
-  });
-}
+el.exportPdf.addEventListener("click", () => {
+  if (state.activeResult) printReport(state.activeResult);
+});
+el.practiceAgain.addEventListener("click", () => showPage("setup"));
+el.viewHistory.addEventListener("click", () => showPage("history"));
 window.addEventListener("hashchange", showPageFromHash);
-window.addEventListener("resize", scheduleFitChallengeText);
-window.addEventListener("resize", syncResultModalLayout);
-
-// Close modal if overlay is clicked
-if (el.resultModal) {
-  el.resultModal.addEventListener("click", (e) => {
-    if (e.target === el.resultModal) hideResultModal();
-  });
-}
 
 applyTheme(getPreferredTheme());
 initSplashScreen();
-// Preload the report logo so Print/PDF and PNG export have it cached and can
-// render it instantly (no empty placeholder box in the PDF).
 loadReportLogo();
-generateChallenge();
+syncStartButton();
 showPageFromHash();
 renderProgress();
 renderHistory();
@@ -1918,20 +1869,18 @@ function initSplashScreen() {
   const splash = document.getElementById("splashScreen");
   if (!splash) return;
 
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motionReduced = reducedMotion();
   const startedAt = performance.now();
-  const minHold = reducedMotion ? 120 : 1700;
+  const minHold = motionReduced ? 120 : 1700;
   let exited = false;
 
   const exitSplash = () => {
     if (exited) return;
     exited = true;
-    // Start the app fade-in underneath while the splash scales up and fades out.
     document.body.classList.remove("splash-active");
     splash.classList.add("exit");
     const removeSplash = () => splash.remove();
     splash.addEventListener("transitionend", removeSplash, { once: true });
-    // Safety net: never leave the splash stuck over the app.
     setTimeout(removeSplash, 1000);
   };
 
@@ -1940,15 +1889,12 @@ function initSplashScreen() {
     setTimeout(exitSplash, wait);
   };
 
-  // Tie the exit to actual load completion so the splash never cuts off on
-  // slow connections, but still holds a minimum beat so it reads as designed.
   if (document.readyState === "complete") {
     scheduleExit();
   } else {
     window.addEventListener("load", scheduleExit);
   }
 
-  // Hard fallback if the load event never fires (blocked resource, etc.).
   setTimeout(() => {
     if (!exited) exitSplash();
   }, 5000);
