@@ -1559,16 +1559,20 @@ function downloadBlob(blob, filename) {
 }
 
 function loadReportLogo() {
-  if (state.reportLogo) return Promise.resolve(state.reportLogo);
+  const theme = document.documentElement.getAttribute("data-theme");
+  const logoSrc = theme === "dark" ? "./speakup-logo.svg" : "./speakup-logo-on-light.svg";
+  if (state.reportLogo && state.reportLogoSource === logoSrc) return Promise.resolve(state.reportLogo);
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       state.reportLogo = img;
+      state.reportLogoSource = logoSrc;
       try {
         const c = document.createElement("canvas");
-        c.width = img.naturalWidth;
-        c.height = img.naturalHeight;
-        c.getContext("2d").drawImage(img, 0, 0);
+        const scale = Math.min(1, 512 / img.naturalWidth);
+        c.width = Math.round(img.naturalWidth * scale);
+        c.height = Math.round(img.naturalHeight * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         state.reportLogoDataUrl = c.toDataURL("image/png");
       } catch (err) {
         state.reportLogoDataUrl = null;
@@ -1576,7 +1580,7 @@ function loadReportLogo() {
       resolve(img);
     };
     img.onerror = () => resolve(null);
-    img.src = "./logo.png";
+    img.src = logoSrc;
   });
 }
 
@@ -1616,11 +1620,14 @@ function buildPrintMarkup(result) {
   const transcript = result.transcript
     ? `<section class="print-section"><h3>Transcript</h3><p class="print-transcript">${escapeHtml(result.transcript)}</p></section>`
     : "";
+  const fallbackLogo = document.documentElement.getAttribute("data-theme") === "dark"
+    ? "./speakup-logo.svg"
+    : "./speakup-logo-on-light.svg";
 
   return `
     <header class="print-header">
       <div class="print-brand">
-        <img class="print-logo" src="${state.reportLogoDataUrl || "./logo.png"}" alt="SpeakUp AI logo">
+        <img class="print-logo" src="${state.reportLogoDataUrl || fallbackLogo}" alt="SpeakUp AI logo">
         <div class="print-brand-copy">
           <p class="print-kicker">SpeakUp AI</p>
           <h1>Speech Report</h1>
@@ -1745,6 +1752,8 @@ function getPreferredTheme() {
 function applyTheme(theme) {
   const next = theme === "dark" ? "dark" : "light";
   document.documentElement.setAttribute("data-theme", next);
+  const siteIcon = document.querySelector("#siteIcon");
+  if (siteIcon) siteIcon.href = next === "dark" ? "./speakup-logo.svg" : "./speakup-logo-on-light.svg";
   try {
     localStorage.setItem(THEME_KEY, next);
   } catch {
@@ -1872,7 +1881,7 @@ function initSplashScreen() {
 
   const motionReduced = reducedMotion();
   const startedAt = performance.now();
-  const minHold = motionReduced ? 120 : 1700;
+  const minHold = motionReduced ? 120 : 5400;
   let exited = false;
 
   const exitSplash = () => {
@@ -1881,8 +1890,13 @@ function initSplashScreen() {
     document.body.classList.remove("splash-active");
     splash.classList.add("exit");
     const removeSplash = () => splash.remove();
-    splash.addEventListener("transitionend", removeSplash, { once: true });
-    setTimeout(removeSplash, 1000);
+    const removeOnExit = (event) => {
+      if (event.target !== splash) return;
+      splash.removeEventListener("animationend", removeOnExit);
+      removeSplash();
+    };
+    splash.addEventListener("animationend", removeOnExit);
+    setTimeout(removeSplash, 1300);
   };
 
   const scheduleExit = () => {
@@ -1896,7 +1910,12 @@ function initSplashScreen() {
     window.addEventListener("load", scheduleExit);
   }
 
+  document.getElementById("splashSkip")?.addEventListener("click", exitSplash);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") exitSplash();
+  });
+
   setTimeout(() => {
     if (!exited) exitSplash();
-  }, 5000);
+  }, 9000);
 }

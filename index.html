@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SpeakUp AI - Impromptu Speaking Coach</title>
-    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="icon" type="image/svg+xml" href="./speakup-logo-on-light.svg" id="siteIcon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -30,21 +30,45 @@
     </noscript>
   </head>
   <body class="splash-active">
-    <div id="splashScreen" class="splash-screen" aria-hidden="true">
-      <div class="splash-inner">
-        <div class="splash-logo-wrap">
-          <img class="splash-logo" src="./logo.png" alt="SpeakUp AI logo">
+    <div id="splashScreen" class="splash-screen" role="presentation">
+      <div class="splash-stage">
+        <svg class="splash-art" viewBox="0 0 1000 520" role="presentation" aria-hidden="true" focusable="false">
+          <line class="ground" x1="40" y1="441" x2="960" y2="441" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/>
+          <g transform="translate(190 0)"><g class="walk" style="--x:-700px;--d:0.15s">
+            <g class="bob" style="--d:0.15s"><path d="M-48 440V372a48 48 0 0 1 96 0V440Z" fill="var(--soft-2)" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/><circle cy="304" r="44" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/><circle cx="-15" cy="298" r="5.5" fill="var(--ink)"/><circle cx="15" cy="298" r="5.5" fill="var(--ink)"/><ellipse class="mouth" style="animation-delay:1.5s" cy="320" rx="11" ry="7" fill="var(--ink)"/></g>
+            <g class="bubA" style="--pd:1.5s"><g class="bubB" style="--gx:310px"><rect x="-74" y="160" width="148" height="70" rx="20" fill="var(--paper)" stroke="var(--ink)" stroke-width="5"/><path d="M-14 229L0 252L14 229" fill="var(--paper)" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/><path d="M-9 226H9" stroke="var(--paper)" stroke-width="8"/><g fill="var(--soft-2)" stroke="var(--ink)" stroke-width="3"><rect class="sw" style="--h:10px;--bd:0ms" x="-31" y="190" width="11" height="10"/><rect class="sw" style="--h:22px;--bd:90ms" x="-10" y="184" width="11" height="22"/><rect class="sw" style="--h:32px;--bd:180ms" x="11" y="179" width="11" height="32"/><rect class="sw" style="--h:18px;--bd:270ms" x="32" y="186" width="11" height="18"/></g></g></g>
+          </g></g>
+          <g transform="translate(390 0)"><g class="walk" style="--x:-700px;--d:0.3s">
+            <g class="bob" style="--d:0.3s"><path d="M-48 440V372a48 48 0 0 1 96 0V440Z" fill="var(--blue)" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/><circle cy="304" r="44" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/><circle cx="-15" cy="298" r="5.5" fill="var(--ink)"/><circle cx="15" cy="298" r="5.5" fill="var(--ink)"/><ellipse class="mouth" style="animation-delay:1.85s" cy="320" rx="11" ry="7" fill="var(--ink)"/></g>
+            <g class="bubA" style="--pd:1.85s"><g class="bubB" style="--gx:110px"><rect x="-74" y="160" width="148" height="70" rx="20" fill="var(--paper)" stroke="var(--ink)" stroke-width="5"/><path d="M-14 229L0 252L14 229" fill="var(--paper)" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/><path d="M-9 226H9" stroke="var(--paper)" stroke-width="8"/><g fill="var(--blue)" stroke="var(--ink)" stroke-width="3"><rect class="sw" style="--h:26px;--bd:0ms" x="-31" y="182" width="11" height="26"/><rect class="sw" style="--h:12px;--bd:90ms" x="-10" y="189" width="11" height="12"/><rect class="sw" style="--h:30px;--bd:180ms" x="11" y="180" width="11" height="30"/><rect class="sw" style="--h:16px;--bd:270ms" x="32" y="187" width="11" height="16"/></g></g></g>
+          </g></g>
+          <g transform="translate(610 0)"><g class="walk" style="--x:700px;--d:0.3s">
+            <g class="bob" style="--d:0.3s"><path d="M-48 440V372a48 48 0 0 1 96 0V440Z" fill="var(--red)" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/><circle cy="304" r="44" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/><circle cx="-15" cy="298" r="5.5" fill="var(--ink)"/><circle cx="15" cy="298" r="5.5" fill="var(--ink)"/><ellipse class="mouth" style="animation-delay:2.2s" cy="320" rx="11" ry="7" fill="var(--ink)"/></g>
+            <g class="bubA" style="--pd:2.2s"><g class="bubB" style="--gx:-110px"><rect x="-74" y="160" width="148" height="70" rx="20" fill="var(--paper)" stroke="var(--ink)" stroke-width="5"/><path d="M-14 229L0 252L14 229" fill="var(--paper)" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/><path d="M-9 226H9" stroke="var(--paper)" stroke-width="8"/><g fill="var(--red)" stroke="var(--ink)" stroke-width="3"><rect class="sw" style="--h:14px;--bd:0ms" x="-31" y="188" width="11" height="14"/><rect class="sw" style="--h:30px;--bd:90ms" x="-10" y="180" width="11" height="30"/><rect class="sw" style="--h:12px;--bd:180ms" x="11" y="189" width="11" height="12"/><rect class="sw" style="--h:26px;--bd:270ms" x="32" y="182" width="11" height="26"/></g></g></g>
+          </g></g>
+          <g transform="translate(810 0)"><g class="walk" style="--x:700px;--d:0.15s">
+            <g class="bob" style="--d:0.15s"><path d="M-48 440V372a48 48 0 0 1 96 0V440Z" fill="var(--green)" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/><circle cy="304" r="44" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/><circle cx="-15" cy="298" r="5.5" fill="var(--ink)"/><circle cx="15" cy="298" r="5.5" fill="var(--ink)"/><ellipse class="mouth" style="animation-delay:2.55s" cy="320" rx="11" ry="7" fill="var(--ink)"/></g>
+            <g class="bubA" style="--pd:2.55s"><g class="bubB" style="--gx:-310px"><rect x="-74" y="160" width="148" height="70" rx="20" fill="var(--paper)" stroke="var(--ink)" stroke-width="5"/><path d="M-14 229L0 252L14 229" fill="var(--paper)" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/><path d="M-9 226H9" stroke="var(--paper)" stroke-width="8"/><g fill="var(--green)" stroke="var(--ink)" stroke-width="3"><rect class="sw" style="--h:30px;--bd:0ms" x="-31" y="180" width="11" height="30"/><rect class="sw" style="--h:16px;--bd:90ms" x="-10" y="187" width="11" height="16"/><rect class="sw" style="--h:24px;--bd:180ms" x="11" y="183" width="11" height="24"/><rect class="sw" style="--h:10px;--bd:270ms" x="32" y="190" width="11" height="10"/></g></g></g>
+          </g></g>
+          <circle class="burst" cx="500" cy="225" r="40" fill="none" stroke="var(--soft-2)" stroke-width="18"/>
+          <g class="logo"><rect x="410" y="137" width="200" height="200" rx="40" fill="var(--soft-2)" stroke="var(--ink)" stroke-width="5"/><image class="logo-on-dark" href="./speakup-logo.svg" x="410" y="137" width="200" height="200"/><image class="logo-on-light" href="./speakup-logo-on-light.svg" x="410" y="137" width="200" height="200"/></g>
+          <g class="lwaves"><rect class="lw" style="--bd:0ms" x="362" y="352" width="16" height="56" rx="3" fill="var(--blue)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:80ms" x="396" y="352" width="16" height="56" rx="3" fill="var(--soft-2)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:160ms" x="430" y="352" width="16" height="56" rx="3" fill="var(--red)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:240ms" x="464" y="352" width="16" height="56" rx="3" fill="var(--blue)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:320ms" x="498" y="352" width="16" height="56" rx="3" fill="var(--soft-2)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:400ms" x="532" y="352" width="16" height="56" rx="3" fill="var(--red)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:480ms" x="566" y="352" width="16" height="56" rx="3" fill="var(--blue)" stroke="var(--ink)" stroke-width="3"/><rect class="lw" style="--bd:560ms" x="600" y="352" width="16" height="56" rx="3" fill="var(--soft-2)" stroke="var(--ink)" stroke-width="3"/></g>
+        </svg>
+        <div class="splash-captions" aria-hidden="true">
+          <p class="cap cap-1">Everyone has something to say.</p>
+          <p class="cap cap-2">Say it like you mean it.</p>
+          <p class="cap cap-3">Think fast. Speak better.</p>
         </div>
-        <div class="splash-wave" aria-hidden="true">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <p class="splash-tagline">Think fast. Speak better.</p>
       </div>
+      <button class="splash-skip" id="splashSkip" type="button">Skip intro</button>
     </div>
 
     <header class="topbar" id="topbar">
       <a class="brand" href="#setup" data-page-link="setup" aria-label="SpeakUp AI home">
-        <img class="brand-logo" src="./logo.png" alt="SpeakUp AI logo">
+        <span class="brand-logo" aria-hidden="true">
+          <img class="logo-on-light" src="./speakup-logo-on-light.svg" alt="">
+          <img class="logo-on-dark" src="./speakup-logo.svg" alt="">
+        </span>
         <span class="brand-name">SpeakUp AI</span>
       </a>
       <div class="topbar-tools">
@@ -204,7 +228,7 @@
 
       <section class="screen results-screen" id="results" data-page="results">
         <article class="report" id="reportPage">
-          <header class="report-header">
+          <header class="report-header report-hero">
             <p class="kicker" id="resultKind">Report</p>
             <h1 id="resultTopic">—</h1>
             <ul class="report-meta">
@@ -215,24 +239,24 @@
             </ul>
           </header>
 
-          <div class="score-card">
+          <div class="score-card report-score">
             <p class="kicker">Overall score</p>
             <strong id="overallScore">--</strong>
             <span>/ 10</span>
             <p id="scoreSummary"></p>
           </div>
 
-          <section class="report-section">
+          <section class="report-section report-rubric">
             <h2>Rubric</h2>
             <div class="rubric-grid" id="rubricGrid"></div>
           </section>
 
-          <section class="report-section">
+          <section class="report-section report-transcript">
             <h2>Transcript</h2>
             <p class="transcript-block" id="resultTranscript"></p>
           </section>
 
-          <section class="report-section feedback-grid">
+          <section class="report-section feedback-grid report-feedback">
             <article>
               <h2>Strengths</h2>
               <ul id="strengths"></ul>
@@ -243,7 +267,7 @@
             </article>
           </section>
 
-          <section class="report-section advice-block">
+          <section class="report-section advice-block report-advice">
             <h2>Coaching tips</h2>
             <p id="retryAdvice"></p>
           </section>
