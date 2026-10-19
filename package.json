@@ -5,7 +5,8 @@
   "description": "AI impromptu speaking coach — think fast, speak better.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "engines": {
     "node": ">=18"

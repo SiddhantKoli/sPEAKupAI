@@ -33,6 +33,7 @@ Recordings are transcribed in the cloud through the `POST /api/transcribe` endpo
 ## Included MVP Features
 
 - Random word, topic, situation, debate, interview, and follow-up prompts
+- Voice-first interview sessions with resume and role context, adaptive follow-ups, answer review, and interview reports saved to History
 - Easy, Medium, Hard, Expert, and custom difficulty levels with custom timers
 - 30, 60, and 120 second speaking timers (plus custom durations)
 - Microphone recording with browser speech recognition when available
@@ -65,6 +66,8 @@ GEMINI_API_KEY=your_gemini_key_here
 
 - **Transcription**: uses Gemini (`gemini-3.5-flash-lite`) when `GEMINI_API_KEY` is configured, otherwise OpenAI Whisper when `OPENAI_API_KEY` is configured, otherwise the browser's built-in speech recognition.
 - **Speech evaluation**: uses Gemini when `GEMINI_API_KEY` is configured, otherwise OpenAI when `OPENAI_API_KEY` is configured. If neither key is available or the API request fails, the app falls back to deterministic local scoring so the product loop still works.
+- **Live Interview**: uses structured JSON question generation and answer evaluation through Gemini (`GEMINI_API_KEY`) or OpenAI (`OPENAI_API_KEY`). Gemini reads uploaded PDFs directly; text-based PDF and DOCX resume content is extracted locally for OpenAI. Scanned PDFs need Gemini for resume context. When no AI key is configured, the interview clearly labels its role-based questions and heuristic evaluations as local fallback behavior.
+- Optional model overrides: `GEMINI_INTERVIEW_MODEL` and `OPENAI_INTERVIEW_MODEL`.
 
 ## Deploy to Render
 

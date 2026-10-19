@@ -21,7 +21,7 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=claude-flow-sfx-20261008">
+    <link rel="stylesheet" href="./styles.css?v=report-contrast-20261019">
     <noscript>
       <style>
         #splashScreen { display: none !important; }
@@ -30,6 +30,61 @@
     </noscript>
   </head>
   <body class="splash-active">
+    <div id="chargeVeil" class="charge-veil" aria-hidden="true"></div>
+    <div id="modeShift" class="mode-shift" aria-hidden="true">
+      <div class="ms-bg"></div>
+      <div class="ms-stage">
+        <svg class="ms-face" viewBox="0 0 600 560" focusable="false">
+          <clipPath id="msLens"><rect x="168" y="238" width="112" height="84" rx="26"/><rect x="320" y="238" width="112" height="84" rx="26"/></clipPath>
+          <g class="ms-person">
+            <path class="ms-body" d="M95 560V478a205 205 0 0 1 410 0V560Z" stroke-linejoin="round"/>
+            <g class="ms-casual">
+              <path class="ms-cardigan" d="M124 428Q148 378 198 366L246 399L300 468L354 399L402 366Q452 378 476 428L505 478V560H95V478Z" fill="#168c91" stroke="var(--ink)" stroke-width="7" stroke-linejoin="round"/>
+              <path class="ms-cardigan-trim" d="M124 428Q148 378 198 366L246 399L300 468L354 399L402 366Q452 378 476 428M95 535H505" fill="none" stroke="#ffe36b" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M169 402Q185 407 200 419M431 402Q415 407 400 419" fill="none" stroke="#f5bfd5" stroke-width="6" stroke-linecap="round"/>
+              <path class="ms-casual-collar" d="M232 410L300 500L368 410L340 392L300 436L260 392Z" fill="#fff4d6" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/>
+              <path d="M278 461L300 477L322 461L315 520L300 533L285 520Z" fill="#e62e50" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
+              <path d="M290 480L300 488L310 480M288 498L300 506L312 498" fill="none" stroke="#ffe600" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="300" cy="518" r="5" fill="#ffe600"/>
+            </g>
+            <g class="ms-suit">
+              <path class="ms-blouse" d="M232 410L300 500L368 410L340 392L300 436L260 392Z" fill="#fff" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/>
+              <path class="ms-lapel-fill" d="M232 410L200 560H259L286 470L260 392ZM368 410L400 560H341L314 470L340 392Z" fill="#a94c80" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
+              <path class="ms-lapel" d="M232 410L200 560M260 392L286 470L300 500M368 410L400 560M340 392L314 470L300 500" stroke="var(--ink)" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path class="ms-tie" d="M286 470H314L326 548L300 560L274 548Z" fill="#0e8f91" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
+              <path d="M293 481L300 488L307 481M290 503L300 510L310 503M286 526L300 535L314 526" fill="none" stroke="#ffe600" stroke-width="4" stroke-linecap="round"/>
+              <circle class="ms-brooch" cx="365" cy="500" r="17" fill="#ffe600" stroke="var(--ink)" stroke-width="5"/>
+              <path d="M365 489L368 497L377 498L370 504L372 513L365 508L358 513L360 504L353 498L362 497Z" fill="#e62e50" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
+              <path class="ms-seam" d="M132 477Q175 463 218 477M468 477Q425 463 382 477" fill="none" stroke="#e4a4c5" stroke-width="5" stroke-linecap="round"/>
+              <circle class="ms-button" cx="235" cy="510" r="7"/><circle class="ms-button" cx="225" cy="538" r="7"/>
+            </g>
+            <circle cx="152" cy="285" r="26" fill="#fffefd" stroke="var(--ink)" stroke-width="8"/>
+            <circle cx="448" cy="285" r="26" fill="#fffefd" stroke="var(--ink)" stroke-width="8"/>
+            <circle cx="300" cy="270" r="150" fill="#fffefd" stroke="var(--ink)" stroke-width="8"/>
+            <g class="ms-hair" fill="#c7d0dc" stroke="var(--ink)" stroke-width="7" stroke-linejoin="round">
+              <circle cx="160" cy="189" r="39"/><circle cx="440" cy="189" r="39"/>
+              <path d="M152 255C146 150 226 108 300 108s154 42 148 147c-34-52-84-74-148-74s-114 22-148 74Z"/>
+            </g>
+            <g class="ms-earrings" fill="#ffe600" stroke="var(--ink)" stroke-width="5"><circle cx="151" cy="319" r="8"/><circle cx="449" cy="319" r="8"/></g>
+            <path class="ms-hairline" d="M229 155Q300 125 371 155" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+            <line class="ms-brow l" x1="205" y1="238" x2="270" y2="238"/><line class="ms-brow r" x1="330" y1="238" x2="395" y2="238"/>
+            <g class="ms-wrinkles" fill="none" stroke="#8793a3" stroke-width="4" stroke-linecap="round"><path d="M178 224q18-10 34 0M388 224q18-10 34 0M190 337q12 8 24 0M386 337q12 8 24 0"/></g>
+            <circle class="ms-eye" cx="240" cy="285" r="14"/><circle class="ms-eye" cx="360" cy="285" r="14"/>
+            <path class="ms-m ms-m-smile" d="M238 342Q300 410 362 342"/>
+            <ellipse class="ms-m-talk" cx="300" cy="362" rx="32" ry="20"/>
+            <path class="ms-m ms-m-flat" d="M252 364H348"/>
+            <g class="ms-glasses">
+              <rect class="ms-lens" x="168" y="238" width="112" height="84" rx="26"/><rect class="ms-lens" x="320" y="238" width="112" height="84" rx="26"/>
+              <path class="ms-frame" d="M280 268Q300 254 320 268M168 262L140 252M432 262L460 252"/>
+              <g clip-path="url(#msLens)"><g class="ms-glint"><rect x="120" y="220" width="40" height="130" fill="#fff" opacity=".9" transform="skewX(-20)"/></g></g>
+            </g>
+          </g>
+        </svg>
+        <div class="ms-caps"><p class="ms-cap ms-cap-a" id="msCapA"></p><p class="ms-cap ms-cap-b" id="msCapB"></p></div>
+      </div>
+      <div class="ms-wipe"></div>
+    </div>
+
     <div id="splashScreen" class="splash-screen" role="presentation">
       <div class="splash-stage">
         <svg class="splash-art" viewBox="0 0 1000 520" role="presentation" aria-hidden="true" focusable="false">
@@ -72,6 +127,15 @@
         <span class="brand-name">SpeakUp AI</span>
       </a>
       <div class="topbar-tools">
+        <span class="mode-switch-wrap">
+          <button class="mode-switch" id="modeSwitch" type="button" aria-describedby="msTip" aria-label="Interview mode. Press and hold to enter.">
+            <span class="ms-fill" aria-hidden="true"></span>
+            <svg class="ms-icon only-casual" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="14" r="4"/><circle cx="17" cy="14" r="4"/><path d="M11 14h2M3 14l1.6-7M21 14l-1.6-7"/></svg>
+            <svg class="ms-icon only-int" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.2c1.4 2.2 6.6 2.2 8 0"/><circle cx="9" cy="9.5" r=".8"/><circle cx="15" cy="9.5" r=".8"/></svg>
+            <span class="ms-label"><span class="only-casual">Interview</span><span class="only-int">Practice mode</span></span>
+          </button>
+          <span class="ms-tip" id="msTip" role="tooltip"><span class="only-casual">Hold to enter</span><span class="only-int">Back to practice</span></span>
+        </span>
         <nav class="top-nav" aria-label="Primary">
           <a href="#setup" class="active" data-page-link="setup">Practice</a>
           <a href="#progress" data-page-link="progress">Progress</a>
@@ -95,11 +159,44 @@
     <main>
       <section class="screen setup-screen active" id="setup" data-page="setup" aria-labelledby="setupTitle">
         <div class="setup-inner">
+          <div class="interview-setup" aria-label="Interview setup">
+            <div class="interview-heading">
+              <div class="front-brand-wrap"><h1 class="front-brand">SPEAKUP AI</h1></div>
+              <h2 class="setup-subtitle">INTERVIEW MODE</h2>
+              <p class="lead setup-lead">Get real interview practice with AI. Upload your resume,<br class="desktop-break"> set your position, and start answering.</p>
+            </div>
+            <div class="interview-panel">
+              <div class="interview-prompt" aria-hidden="true">
+                <div class="resume-illustration"><svg viewBox="0 0 120 130"><path d="M24 12h58l17 18v83H24z"/><path d="M82 12v20h17M39 51h44M39 66h44M39 81h32"/><circle cx="91" cy="95" r="21"/><path d="M91 105V84m-9 9 9-9 9 9"/></svg></div>
+                <h3>UPLOAD YOUR RESUME</h3>
+                <p>We’ll use it to create relevant<br> interview questions.</p>
+              </div>
+              <div class="interview-fields">
+                <label class="interview-label" for="resumeFile">YOUR RESUME</label>
+                <label class="resume-drop" for="resumeFile">
+                  <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 22H6a5 5 0 0 1 0-10 8 8 0 0 1 15-2 6 6 0 0 1 2 12h-1M16 28V15m-5 5 5-5 5 5"/></svg>
+                  <span><span id="resumeFileName">Click to upload or drag and drop</span><small>PDF, DOCX (Max 5MB)</small></span>
+                  <input id="resumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                </label>
+                <label class="interview-label position-label" for="interviewPosition">POSITION YOU’RE INTERVIEWING FOR</label>
+                <div class="position-input"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V4h8v3M3 12h18m-11 0v2h4v-2"/></svg><input id="interviewPosition" type="text" placeholder="e.g. Software Engineer, Data Analyst, Frontend Developer…"></div>
+                <div class="interview-preferences">
+                  <label>INTERVIEW TYPE<select id="interviewType"><option value="mixed">Mixed</option><option value="technical">Technical</option><option value="behavioral">Behavioral</option><option value="hr">HR</option></select></label>
+                  <label>EXPERIENCE LEVEL<select id="interviewExperience"><option value="entry">Entry level</option><option value="mid" selected>Mid level</option><option value="senior">Senior</option></select></label>
+                  <label>DIFFICULTY<select id="interviewDifficulty"><option>Easy</option><option selected>Medium</option><option>Hard</option><option>Expert</option></select></label>
+                  <label>SESSION LENGTH<select id="interviewDuration"><option value="10">10 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option></select></label>
+                </div>
+                <button class="button primary interview-start" id="startInterview" type="button">START INTERVIEW <span aria-hidden="true">→</span></button>
+                <button class="button secondary interview-resume" id="resumeInterviewDraft" type="button" hidden>RESUME SAVED INTERVIEW</button>
+                <p class="interview-form-error" id="interviewFormError" role="alert" hidden></p>
+              </div>
+            </div>
+          </div>
           <div class="front-brand-wrap">
             <h1 class="front-brand" id="setupTitle">SPEAKUP AI</h1>
           </div>
-          <h2 class="setup-subtitle">Set your round</h2>
-          <p class="lead setup-lead">Pick a difficulty, a section, and a time. Then start.</p>
+          <h2 class="setup-subtitle"><span class="only-casual">Set your round</span><span class="only-int">Interview mode</span></h2>
+          <p class="lead setup-lead"><span class="only-casual">Pick a difficulty, a section, and a time. Then start.</span><span class="only-int">Structured questions. Timed answers. Honest feedback. Choose a level and a time.</span></p>
 
           <fieldset class="choice-block">
             <legend>Difficulty</legend>
@@ -121,14 +218,13 @@
             </div>
           </fieldset>
 
-          <fieldset class="choice-block">
+          <fieldset class="choice-block" id="sectionGroup">
             <legend>Section</legend>
             <div class="chip-row" role="radiogroup" aria-label="Section">
               <button type="button" class="choice-chip" role="radio" aria-checked="false" data-mode="word">Random Word</button>
               <button type="button" class="choice-chip" role="radio" aria-checked="false" data-mode="topic">Random Topic</button>
               <button type="button" class="choice-chip" role="radio" aria-checked="false" data-mode="situation">Situation</button>
               <button type="button" class="choice-chip" role="radio" aria-checked="false" data-mode="debate">Debate</button>
-              <button type="button" class="choice-chip" role="radio" aria-checked="false" data-mode="interview">Interview</button>
               <button type="button" class="choice-chip" role="radio" aria-checked="false" data-mode="followup">Follow-Up</button>
             </div>
           </fieldset>
@@ -202,6 +298,7 @@
       </section>
 
       <section class="screen flow-screen speaking-screen" id="speaking" data-page="speaking">
+        <div class="recording-corners" aria-hidden="true"><span class="recording-corner corner-top-left"></span><span class="recording-corner corner-top-right"></span><span class="recording-corner corner-bottom-left"></span><span class="recording-corner corner-bottom-right"></span></div>
         <div class="on-air recording" id="recordingState">On air</div>
         <p class="topic-reminder" id="speakTopic"></p>
         <strong class="timer" id="timer">01:00</strong>
@@ -224,6 +321,49 @@
             <div class="transcribe-meter-fill" id="transcribeMeterFill"></div>
           </div>
         </div>
+      </section>
+
+      <section class="screen interview-room-screen" id="interviewRoom" data-page="interviewRoom" aria-label="Live interview" aria-live="polite">
+        <header class="interview-room-nav">
+          <a class="brand" href="#setup" id="roomBrand" aria-label="SpeakUp AI">
+            <span class="brand-logo" aria-hidden="true"><img class="logo-on-light" src="./speakup-logo-on-light.svg" alt=""><img class="logo-on-dark" src="./speakup-logo.svg" alt=""></span>
+            <span class="brand-name">SpeakUp AI</span>
+          </a>
+          <div class="room-session-meta"><span class="room-mode-pill">Interview</span><span class="sr-only" id="roomProgress">Question 1 of 8</span><ol class="room-stepper" id="roomProgressSteps" aria-label="Interview question progress"></ol><span class="room-elapsed" id="roomElapsed">00:00 / 20:00</span></div>
+          <div class="room-nav-actions"><button class="button ghost room-theme-toggle" id="roomThemeToggle" type="button" aria-label="Switch theme">◐ <span class="room-theme-label">Dark</span></button><button class="button danger room-end" id="endInterview" type="button">End interview</button></div>
+        </header>
+        <div class="interview-room-layout">
+          <section class="room-main">
+            <div class="room-status-line"><span class="room-state-dot" id="roomStateDot"></span><span id="roomStateLabel">Preparing your interview…</span></div>
+            <div class="room-question-meta"><span class="sr-only" id="roomQuestionNumber">QUESTION 1</span><span id="roomQuestionCategory">Introduction</span><span id="roomQuestionDifficulty">Medium</span></div>
+            <h1 class="room-question" id="roomQuestion">Your first question will appear here.</h1>
+            <p class="room-instruction" id="roomInstruction">Take a moment to think. Start when you’re ready.</p>
+            <div class="room-recorder" id="roomRecorder">
+              <div class="room-recorder-top"><span class="room-recording-label" id="roomRecordingLabel">YOUR TURN TO ANSWER</span><strong id="interviewAnswerTimer">02:00</strong></div>
+              <div class="room-waveform" id="roomWaveform" role="img" aria-label="Audio level"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+              <p class="room-recording-hint" id="roomRecordingHint">Up to 2 minutes for this answer. Your microphone starts only when you choose.</p>
+              <div class="room-controls" id="roomControls">
+                <button class="button primary" id="startAnswer" type="button">Start answer</button>
+                <button class="button danger" id="endAnswer" type="button" hidden>End answer</button>
+                <button class="button secondary" id="retryAnswer" type="button" hidden>Retry recording</button>
+                <button class="button ghost" id="skipQuestion" type="button">Skip question</button>
+                <button class="button primary" id="submitAnswer" type="button" hidden>Submit answer</button>
+                <button class="button secondary" id="retryInterviewRequest" type="button" hidden>Retry</button>
+                <button class="button ghost" id="returnToInterviewSetup" type="button" hidden>Return to setup</button>
+              </div>
+            </div>
+            <section class="room-transcript" aria-labelledby="roomTranscriptTitle">
+              <div class="room-transcript-heading"><h2 id="roomTranscriptTitle">Live transcript</h2><span id="transcriptState">Waiting for your answer</span></div>
+              <textarea id="interviewTranscript" rows="5" placeholder="Your live transcript will appear here while you speak. You can edit it before submitting."></textarea>
+            </section>
+            <details class="room-history">
+              <summary>Previous answers <span id="roomTurnCount">0 turns</span></summary>
+              <div id="roomTurnHistory"><p class="room-empty">Your completed answers will appear here.</p></div>
+            </details>
+            <p class="room-error" id="roomError" role="alert" hidden></p>
+          </section>
+        </div>
+        <div class="room-toast" id="roomToast" role="status" aria-live="polite"></div>
       </section>
 
       <section class="screen results-screen" id="results" data-page="results">
@@ -253,7 +393,7 @@
 
           <section class="report-section report-transcript">
             <h2>Transcript</h2>
-            <p class="transcript-block" id="resultTranscript"></p>
+            <div class="transcript-block" id="resultTranscript"></div>
           </section>
 
           <section class="report-section feedback-grid report-feedback">
@@ -349,6 +489,6 @@
 
     <div id="printSheet" aria-hidden="true"></div>
 
-    <script src="./app.js?v=ui-flow-20261008"></script>
+    <script src="./app.js?v=live-interview-20261019"></script>
   </body>
 </html>

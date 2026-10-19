@@ -261,9 +261,10 @@ const prompts = {
 
 const STORAGE_KEY = "speakup-history";
 const THEME_KEY = "speakup-theme";
+const INTERVIEW_DRAFT_KEY = "speakup-interview-draft";
 const PREP_SECONDS = 10;
 const PREP_RING = 2 * Math.PI * 52;
-const FLOW_PAGES = new Set(["tumbler", "prepare", "speaking", "processing"]);
+const FLOW_PAGES = new Set(["tumbler", "prepare", "speaking", "processing", "interviewRoom"]);
 const fillerPatterns = [
   "um",
   "uh",
@@ -309,7 +310,8 @@ const state = {
   startedAt: null,
   remaining: 60,
   history: loadHistory(),
-  activeResult: null
+  activeResult: null,
+  interview: null
 };
 
 const el = {
@@ -325,6 +327,44 @@ const el = {
   customComplexity: document.querySelector("#customComplexity"),
   startSession: document.querySelector("#startSession"),
   setup: document.querySelector("#setup"),
+  interviewRoom: document.querySelector("#interviewRoom"),
+  resumeFile: document.querySelector("#resumeFile"),
+  resumeFileName: document.querySelector("#resumeFileName"),
+  interviewPosition: document.querySelector("#interviewPosition"),
+  interviewType: document.querySelector("#interviewType"),
+  interviewExperience: document.querySelector("#interviewExperience"),
+  interviewDifficulty: document.querySelector("#interviewDifficulty"),
+  interviewDuration: document.querySelector("#interviewDuration"),
+  startInterview: document.querySelector("#startInterview"),
+  resumeInterviewDraft: document.querySelector("#resumeInterviewDraft"),
+  interviewFormError: document.querySelector("#interviewFormError"),
+  startAnswer: document.querySelector("#startAnswer"),
+  endAnswer: document.querySelector("#endAnswer"),
+  retryAnswer: document.querySelector("#retryAnswer"),
+  submitAnswer: document.querySelector("#submitAnswer"),
+  skipQuestion: document.querySelector("#skipQuestion"),
+  retryInterviewRequest: document.querySelector("#retryInterviewRequest"),
+  returnToInterviewSetup: document.querySelector("#returnToInterviewSetup"),
+  roomQuestion: document.querySelector("#roomQuestion"),
+  roomStateLabel: document.querySelector("#roomStateLabel"),
+  roomStateDot: document.querySelector("#roomStateDot"),
+  roomProgress: document.querySelector("#roomProgress"),
+  roomElapsed: document.querySelector("#roomElapsed"),
+  roomQuestionNumber: document.querySelector("#roomQuestionNumber"),
+  roomProgressSteps: document.querySelector("#roomProgressSteps"),
+  roomQuestionCategory: document.querySelector("#roomQuestionCategory"),
+  roomQuestionDifficulty: document.querySelector("#roomQuestionDifficulty"),
+  roomInstruction: document.querySelector("#roomInstruction"),
+  roomRecordingLabel: document.querySelector("#roomRecordingLabel"),
+  roomRecordingHint: document.querySelector("#roomRecordingHint"),
+  interviewAnswerTimer: document.querySelector("#interviewAnswerTimer"),
+  roomWaveform: document.querySelector("#roomWaveform"),
+  interviewTranscript: document.querySelector("#interviewTranscript"),
+  transcriptState: document.querySelector("#transcriptState"),
+  roomError: document.querySelector("#roomError"),
+  roomTurnCount: document.querySelector("#roomTurnCount"),
+  roomTurnHistory: document.querySelector("#roomTurnHistory"),
+  roomToast: document.querySelector("#roomToast"),
   tumblerTrack: document.querySelector("#tumblerTrack"),
   tumblerHint: document.querySelector("#tumblerHint"),
   prepTopic: document.querySelector("#prepTopic"),
@@ -775,24 +815,31 @@ async function beginSpeaking() {
 }
 
 async function startRecording() {
-  el.transcript.value = "";
+  const interviewSession = state.interview;
+  const interviewRecording = Boolean(state.interview && ["requesting_microphone", "recording"].includes(state.interview.status));
+  let interviewStreamAcquired = null;
+  transcriptTarget().value = "";
   state.audioChunks = [];
   state.audioBlob = null;
   state.autoEvaluateAfterStop = false;
   state.startedAt = Date.now();
-  state.remaining = state.challenge.duration;
-  state.isRecording = true;
-  setRecordingUi(true);
-
-  startTimer();
+  state.remaining = interviewRecording ? state.interview.answerLimit : state.challenge.duration;
+  state.isRecording = !interviewRecording;
+  if (!interviewRecording) {
+    setRecordingUi(true);
+    startTimer();
+  }
 
   try {
     if (!state.mediaStream) {
-      state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (interviewRecording && (state.interview !== interviewSession || state.interview.status !== "requesting_microphone")) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      state.mediaStream = stream;
+      if (interviewRecording) interviewStreamAcquired = stream;
     }
-    startWaveform(state.mediaStream);
-    startSpeechRecognition();
-
     const mimeType = pickRecorderMimeType();
     state.recorder = mimeType
       ? new MediaRecorder(state.mediaStream, { mimeType })
@@ -808,13 +855,45 @@ async function startRecording() {
         state.mediaStream = null;
       }
       const type = state.recorder.mimeType || mimeType || "audio/webm";
+      if (state.interview?.status === "interview_complete") {
+        state.audioChunks = [];
+        state.audioBlob = null;
+        state.recorder = null;
+        return;
+      }
       state.audioBlob = new Blob(state.audioChunks, { type });
-      await transcribeRecordedAudio(state.autoEvaluateAfterStop);
+      if (state.interview?.status === "transcribing") await transcribeInterviewAudio();
+      else if (!state.interview || state.interview.status === "interview_complete") await transcribeRecordedAudio(state.autoEvaluateAfterStop);
+      state.recorder = null;
     });
     state.recorder.start(1000);
+    if (interviewRecording) {
+      state.interview.answerStartedAt = Date.now();
+      transitionInterview("recording");
+      state.isRecording = true;
+      startWaveform(state.mediaStream);
+      startSpeechRecognition();
+      setRecordingUi(true);
+      startTimer();
+    } else {
+      startWaveform(state.mediaStream);
+      startSpeechRecognition();
+    }
   } catch (error) {
+    if (interviewRecording && state.interview !== interviewSession) {
+      interviewStreamAcquired?.getTracks().forEach((track) => track.stop());
+      if (state.mediaStream === interviewStreamAcquired) state.mediaStream = null;
+      return;
+    }
     state.isRecording = false;
     stopWaveform();
+    if (interviewRecording) {
+      transitionInterview("error");
+      showRoomError("Microphone access is unavailable. Check browser permission and try recording again.");
+      renderInterviewRoom();
+      releaseMicrophone();
+      return;
+    }
     appendNotice("Microphone access was blocked. You can still type or paste a transcript.");
     stopRecording(true);
   }
@@ -835,7 +914,8 @@ function startWaveform(stream) {
   stopWaveform();
 
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass || !el.waveform) return;
+  const waveform = state.interview && state.interview.status === "recording" ? el.roomWaveform : el.waveform;
+  if (!AudioContextClass || !waveform) return;
 
   const audioContext = new AudioContextClass();
   const analyser = audioContext.createAnalyser();
@@ -849,7 +929,7 @@ function startWaveform(stream) {
 
   state.audioContext = audioContext;
   state.analyser = analyser;
-  state.waveformBars = [...el.waveform.querySelectorAll("span")];
+  state.waveformBars = [...waveform.querySelectorAll("span")];
   state.waveformLevels = state.waveformBars.map(() => 0.35);
 
   const frequencyData = new Uint8Array(analyser.frequencyBinCount);
@@ -924,7 +1004,7 @@ function startSpeechRecognition() {
       else interim += text;
     }
     const live = `${finalText}${interim}`.trim();
-    if (live) el.transcript.value = live;
+    if (live) transcriptTarget().value = live;
   };
 
   recognition.onerror = (event) => {
@@ -952,10 +1032,16 @@ function startSpeechRecognition() {
 
 function startTimer() {
   clearInterval(state.timerId);
-  el.timer.textContent = formatTime(state.remaining);
+  const interviewRecording = Boolean(state.interview && state.interview.status === "recording");
+  const timerTarget = interviewRecording ? el.interviewAnswerTimer : el.timer;
+  if (timerTarget) timerTarget.textContent = formatTime(state.remaining);
   state.timerId = setInterval(() => {
     state.remaining -= 1;
-    el.timer.textContent = formatTime(Math.max(state.remaining, 0));
+    if (timerTarget) timerTarget.textContent = formatTime(Math.max(state.remaining, 0));
+    if (interviewRecording && state.remaining <= 10 && el.roomRecordingLabel) {
+      el.roomRecordingLabel.textContent = `${Math.max(0, state.remaining)} SECONDS LEFT · RECORDING`;
+      el.roomRecordingLabel.classList.add("is-warning");
+    }
     if (state.remaining <= 0) stopRecording(true);
   }, 1000);
 }
@@ -963,6 +1049,14 @@ function startTimer() {
 function stopRecording(autoEvaluate) {
   clearInterval(state.timerId);
   state.autoEvaluateAfterStop = autoEvaluate;
+  const interviewRecording = Boolean(state.interview && state.interview.status === "recording");
+  if (interviewRecording) {
+    state.interview.recordedAnswerSeconds = Math.max(1, Math.round((Date.now() - state.interview.answerStartedAt) / 1000));
+    transitionInterview("transcribing");
+    if (el.roomStateLabel) el.roomStateLabel.textContent = "Transcribing your answer…";
+    if (el.transcriptState) el.transcriptState.textContent = "Finalizing transcript…";
+    if (el.roomRecordingLabel) el.roomRecordingLabel.textContent = "TRANSCRIBING";
+  }
   state.isRecording = false;
 
   if (state.recognition) {
@@ -977,7 +1071,7 @@ function stopRecording(autoEvaluate) {
   }
 
   if (state.recorder && state.recorder.state !== "inactive") {
-    if (autoEvaluate) showProcessing("Transcribing", "Inking transcript…");
+    if (autoEvaluate && !interviewRecording) showProcessing("Transcribing", "Inking transcript…");
     state.recorder.stop();
   } else {
     stopWaveform();
@@ -985,7 +1079,8 @@ function stopRecording(autoEvaluate) {
       state.mediaStream.getTracks().forEach((track) => track.stop());
       state.mediaStream = null;
     }
-    if (autoEvaluate && el.transcript.value.trim()) {
+    if (interviewRecording) transcribeInterviewAudio();
+    else if (autoEvaluate && el.transcript.value.trim()) {
       evaluateCurrentSpeech();
     }
   }
@@ -995,9 +1090,18 @@ function stopRecording(autoEvaluate) {
 function setRecordingUi(isRecording) {
   if (el.stopRecording) el.stopRecording.disabled = !isRecording;
   if (el.startSession) el.startSession.disabled = isRecording || !setupReady();
-  el.recordingState.textContent = isRecording ? "On air" : "Ready";
-  el.recordingState.classList.toggle("recording", isRecording);
-  if (el.waveform) el.waveform.classList.toggle("is-live", isRecording);
+  if (el.recordingState) {
+    el.recordingState.textContent = isRecording ? "On air" : "Ready";
+    el.recordingState.classList.toggle("recording", isRecording);
+  }
+  if (el.waveform) el.waveform.classList.toggle("is-live", isRecording && !(state.interview && state.interview.status === "recording"));
+  if (el.roomWaveform) el.roomWaveform.classList.toggle("is-live", isRecording && Boolean(state.interview));
+  if (!isRecording && el.roomRecordingLabel) el.roomRecordingLabel.classList.remove("is-warning");
+  if (state.interview) renderInterviewRoom();
+}
+
+function transcriptTarget() {
+  return state.interview && state.interview.status !== "interview_complete" && el.interviewTranscript ? el.interviewTranscript : el.transcript;
 }
 
 function appendNotice(message) {
@@ -1137,6 +1241,14 @@ function sanitizeTranscript(value) {
     .replace(/^Listening….*$/m, "")
     .replace(/\[[^\]]+\]/g, "")
     .trim();
+}
+
+function countFillerWords(transcript) {
+  const lower = String(transcript || "").toLowerCase();
+  return fillerRegExps.reduce((count, regexp) => {
+    regexp.lastIndex = 0;
+    return count + (lower.match(regexp)?.length || 0);
+  }, 0);
 }
 
 async function evaluateCurrentSpeech() {
@@ -1368,27 +1480,41 @@ function labelFor(key) {
 function renderResult(result) {
   state.activeResult = result;
   const challenge = result.challenge || {};
-  el.overallScore.textContent = result.overall.toFixed(1);
+  const hasScore = Number.isFinite(result.overall) && result.overall > 0;
+  el.overallScore.textContent = hasScore ? result.overall.toFixed(1) : "—";
   const wordsCount = result.metrics.words;
   const wpmValue = result.metrics.wpm;
   const fillersValue = result.metrics.fillerCount !== undefined ? result.metrics.fillerCount : "calculated";
   const source = result.provider ? ` Source: ${labelForProvider(result.provider)}.` : "";
-  el.scoreSummary.textContent = `${wordsCount} words, ${wpmValue} WPM, ${fillersValue} filler words.${source}`;
-  el.rubricGrid.innerHTML = Object.entries(result.scores).map(([key, value]) => `
+  if (result.interview) {
+    const evaluatedCount = result.interview.turns.filter((turn) => turn.evaluation).length;
+    const skippedCount = result.interview.turns.filter((turn) => turn.skipped).length;
+    el.scoreSummary.textContent = evaluatedCount
+      ? `${evaluatedCount} answers evaluated · ${skippedCount} skipped · ${labelForProvider(result.provider || "local")}.`
+      : "No answers evaluated; no score was added to Progress.";
+  } else {
+    el.scoreSummary.textContent = `${wordsCount} words, ${wpmValue} WPM, ${fillersValue} filler words.${source}`;
+  }
+  el.rubricGrid.innerHTML = Object.entries(result.scores || {}).map(([key, value]) => `
     <div class="rubric-item">
       <span>${labelFor(key)}</span>
       <strong>${value.toFixed(1)}</strong>
       <div class="meter" aria-hidden="true"><div style="width: ${value * 10}%"></div></div>
     </div>
   `).join("");
+  if (!hasScore) el.rubricGrid.innerHTML = "<p>No answer was evaluated, so no rubric score is available.</p>";
   renderList(el.strengths, result.strengths);
   renderList(el.improvements, result.improvements);
   el.retryAdvice.textContent = result.advice;
-  if (el.resultKind) el.resultKind.textContent = challenge.label || "Report";
-  if (el.resultTopic) el.resultTopic.textContent = challenge.text || "—";
+  if (el.resultKind) el.resultKind.textContent = result.interview ? "Interview report" : challenge.label || "Report";
+  if (el.resultTopic) el.resultTopic.textContent = result.interview?.config?.position || challenge.text || "—";
   if (el.resultDifficulty) el.resultDifficulty.textContent = challenge.difficulty || "";
-  if (el.resultSection) el.resultSection.textContent = challenge.label || "";
-  if (el.resultDuration) el.resultDuration.textContent = `${challenge.duration || result.metrics.duration} seconds`;
+  if (el.resultSection) el.resultSection.textContent = result.interview
+    ? `${result.interview.turns.filter((turn) => turn.evaluation).length} answers evaluated · ${result.interview.turns.filter((turn) => turn.skipped).length} skipped`
+    : challenge.label || "";
+  if (el.resultDuration) el.resultDuration.textContent = result.interview
+    ? `${result.interview.config.durationMinutes} minute session · ${formatTime(challenge.duration || result.metrics.duration)} elapsed`
+    : `${challenge.duration || result.metrics.duration} seconds`;
   if (el.resultDate) el.resultDate.textContent = new Date(result.date).toLocaleString();
   if (el.resultTranscript) el.resultTranscript.textContent = result.transcript || "No transcript saved.";
   updateCoach(result);
@@ -1402,7 +1528,8 @@ function renderList(target, items) {
 function saveAttempt(result) {
   state.history.unshift(result);
   state.history = state.history.slice(0, 25);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history)); }
+  catch { /* Keep the result available in memory for this session. */ }
 }
 
 function loadHistory() {
@@ -1415,7 +1542,7 @@ function loadHistory() {
 
 function renderProgress() {
   renderTrends();
-  const attempts = state.history;
+  const attempts = state.history.filter((item) => Number.isFinite(item.overall) && item.overall > 0);
   if (!attempts.length) {
     if (el.totalSpeeches) el.totalSpeeches.textContent = "0";
     if (el.bestScore) el.bestScore.textContent = "--";
@@ -1450,7 +1577,7 @@ function renderTrends() {
   const container = el.trends;
   if (!container) return;
 
-  const attempts = [...state.history].reverse();
+  const attempts = state.history.filter((item) => Number.isFinite(item.overall) && item.overall > 0).reverse();
   if (!attempts.length) {
     container.innerHTML = '<div class="trend-empty"><p>Complete a few sessions to see your curves take shape.</p></div>';
     return;
@@ -1623,6 +1750,11 @@ function buildPrintMarkup(result) {
   const fallbackLogo = document.documentElement.getAttribute("data-theme") === "dark"
     ? "./speakup-logo.svg"
     : "./speakup-logo-on-light.svg";
+  const title = result.interview?.config?.position || result.challenge.text;
+  const scoreText = Number.isFinite(result.overall) && result.overall > 0 ? `${result.overall.toFixed(1)}<small>/10</small>` : "Not scored";
+  const durationLabel = result.interview
+    ? `${result.interview.config.durationMinutes} minute session · ${formatTime(result.challenge.duration || result.metrics.duration)} elapsed`
+    : `${result.challenge.duration} seconds`;
 
   return `
     <header class="print-header">
@@ -1630,20 +1762,20 @@ function buildPrintMarkup(result) {
         <img class="print-logo" src="${state.reportLogoDataUrl || fallbackLogo}" alt="SpeakUp AI logo">
         <div class="print-brand-copy">
           <p class="print-kicker">SpeakUp AI</p>
-          <h1>Speech Report</h1>
+          <h1>${result.interview ? "Interview Report" : "Speech Report"}</h1>
         </div>
       </div>
       <p class="print-date">${new Date(result.date).toLocaleString()}</p>
     </header>
     <section class="print-challenge">
       <span class="print-tag">${escapeHtml(result.challenge.label)}</span>
-      <h2>${escapeHtml(result.challenge.text)}</h2>
-      <p class="print-meta">Difficulty: ${escapeHtml(result.challenge.difficulty)} · ${result.challenge.duration} seconds · Source: ${labelForProvider(result.provider || "local")}</p>
+      <h2>${escapeHtml(title)}</h2>
+      <p class="print-meta">Difficulty: ${escapeHtml(result.challenge.difficulty)} · ${escapeHtml(durationLabel)} · Source: ${labelForProvider(result.provider || "local")}</p>
     </section>
     <section class="print-score-row">
       <div class="print-overall">
         <span>Overall</span>
-        <strong>${result.overall.toFixed(1)}<small>/10</small></strong>
+        <strong>${scoreText}</strong>
       </div>
       <div class="print-metrics">
         <div><span>Words</span><strong>${result.metrics.words ?? "—"}</strong></div>
@@ -1674,7 +1806,7 @@ function renderHistory() {
         <strong>${escapeHtml(item.challenge.label)}: ${escapeHtml(item.challenge.text)}</strong>
         <span>${new Date(item.date).toLocaleString()} - ${item.metrics.words} words - ${labelForProvider(item.provider || "local")}</span>
       </div>
-      <strong>${item.overall.toFixed(1)}/10</strong>
+      <strong>${Number.isFinite(item.overall) && item.overall > 0 ? `${item.overall.toFixed(1)}/10` : "Not scored"}</strong>
     </article>
   `).join("");
 
@@ -1699,7 +1831,12 @@ function renderHistory() {
 
 function updateCoach(result) {
   if (!el.coachHeadline || !el.coachBody) return;
-  const weakest = Object.entries(result.scores).sort((a, b) => a[1] - b[1])[0][0];
+  const weakest = Object.entries(result.scores || {}).sort((a, b) => a[1] - b[1])[0]?.[0];
+  if (!weakest) {
+    el.coachHeadline.textContent = "No evaluated answers yet";
+    el.coachBody.textContent = result.advice || "Complete an interview answer to receive coaching feedback.";
+    return;
+  }
   el.coachHeadline.textContent = `Today's focus: ${labelFor(weakest)}`;
   el.coachBody.textContent = result.advice;
 }
@@ -1713,7 +1850,7 @@ function clearHistory() {
 
 async function focusedPrompt() {
   const latest = state.history[0];
-  if (!latest) {
+  if (!latest || !Object.keys(latest.scores || {}).length) {
     setMode("topic");
     setDifficulty("Medium");
     if (!el.duration.value) setDuration("60");
@@ -1769,6 +1906,12 @@ function applyTheme(theme) {
     if (text) text.textContent = label;
     el.themeToggle.setAttribute("aria-label", aria);
   }
+  const roomThemeToggle = document.getElementById("roomThemeToggle");
+  if (roomThemeToggle) {
+    const text = roomThemeToggle.querySelector(".room-theme-label");
+    if (text) text.textContent = label;
+    roomThemeToggle.setAttribute("aria-label", aria);
+  }
 }
 
 function toggleTheme() {
@@ -1786,7 +1929,7 @@ function abortFlow() {
 function showPage(pageName) {
   const aliases = { practice: "setup" };
   const requested = aliases[pageName] || pageName;
-  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "results", "progress", "history"];
+  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewRoom", "results", "progress", "history"];
   const safePage = known.includes(requested) ? requested : "setup";
 
   if (!FLOW_PAGES.has(safePage)) abortFlow();
@@ -1874,6 +2017,9 @@ syncStartButton();
 showPageFromHash();
 renderProgress();
 renderHistory();
+try {
+  if (localStorage.getItem(INTERVIEW_DRAFT_KEY)) el.resumeInterviewDraft.hidden = false;
+} catch { /* ignore unavailable storage */ }
 
 function initSplashScreen() {
   const splash = document.getElementById("splashScreen");
@@ -1919,3 +2065,846 @@ function initSplashScreen() {
     if (!exited) exitSplash();
   }, 9000);
 }
+
+// ---- Interview side: hold-to-enter button + story transition ----
+(function initModeSwitch() {
+  const btn = document.getElementById("modeSwitch");
+  const overlay = document.getElementById("modeShift");
+  if (!btn || !overlay) return;
+
+  const root = document.documentElement;
+  const wrap = btn.parentElement;
+  const capA = document.getElementById("msCapA");
+  const capB = document.getElementById("msCapB");
+  const HOLD_MS = 700;
+  const TIMING = { "to-int": { swap: 4250, end: 5200 }, "to-cas": { swap: 2750, end: 3600 } };
+  let holdTimer = null;
+  let startedAt = 0;
+  let charging = false;
+  let shifting = false;
+  let swapTimer = null;
+  let endTimer = null;
+  let direction = "";
+  let prevMode = "";
+
+  const inInterview = () => root.dataset.side === "interview";
+
+  function showHint() {
+    wrap.classList.add("hint");
+    btn.classList.remove("nudge");
+    void btn.offsetWidth;
+    btn.classList.add("nudge");
+    setTimeout(() => wrap.classList.remove("hint"), 1700);
+  }
+
+  function startCharge() {
+    if (shifting || charging || inInterview()) return;
+    charging = true;
+    startedAt = performance.now();
+    btn.classList.add("charging");
+    document.body.classList.add("charging");
+    holdTimer = setTimeout(() => {
+      stopCharge(true);
+      runShift("to-int");
+    }, HOLD_MS);
+  }
+
+  function stopCharge(completed) {
+    if (!charging) return;
+    charging = false;
+    clearTimeout(holdTimer);
+    btn.classList.remove("charging");
+    document.body.classList.remove("charging");
+    if (!completed && performance.now() - startedAt < HOLD_MS) showHint();
+  }
+
+  function applySide() {
+    if (direction === "to-int") {
+      prevMode = el.mode.value;
+      root.dataset.side = "interview";
+      setMode("interview");
+      btn.setAttribute("aria-label", "Back to practice mode");
+    } else {
+      delete root.dataset.side;
+      setMode(prevMode || "");
+      btn.setAttribute("aria-label", "Interview mode. Press and hold to enter.");
+    }
+    try {
+      showPage("setup");
+    } catch (error) {
+      /* page switch is best-effort */
+    }
+    window.scrollTo(0, 0);
+    root.classList.add("side-in");
+    setTimeout(() => root.classList.remove("side-in"), 1600);
+  }
+
+  function swap() {
+    if (overlay.classList.contains("swapped")) return;
+    overlay.classList.add("swapped");
+    applySide();
+  }
+
+  function endShift() {
+    clearTimeout(swapTimer);
+    clearTimeout(endTimer);
+    overlay.className = "mode-shift";
+    document.body.classList.remove("shifting");
+    shifting = false;
+    btn.blur();
+    wrap.classList.remove("hint");
+  }
+
+  function runShift(dir) {
+    if (shifting) return;
+    shifting = true;
+    direction = dir;
+    document.body.classList.add("shifting");
+
+    if (dir === "to-int") {
+      const cs = getComputedStyle(root);
+      overlay.style.setProperty("--ms-paper", cs.getPropertyValue("--paper").trim());
+      overlay.style.setProperty("--ms-ink", cs.getPropertyValue("--ink").trim());
+      capA.textContent = "Playtime\u2019s over.";
+      capB.textContent = "Interview mode.";
+    } else {
+      capA.textContent = "Loosen up.";
+      capB.textContent = "Practice mode.";
+    }
+
+    const rect = btn.getBoundingClientRect();
+    overlay.style.setProperty("--ox", `${rect.left + rect.width / 2}px`);
+    overlay.style.setProperty("--oy", `${rect.top + rect.height / 2}px`);
+
+    overlay.className = "mode-shift";
+    void overlay.offsetWidth;
+    overlay.className = `mode-shift run ${dir}`;
+
+    const timing = reducedMotion()
+      ? { "to-int": { swap: 60, end: 120 }, "to-cas": { swap: 60, end: 120 } }
+      : TIMING;
+    swapTimer = setTimeout(swap, timing[dir].swap);
+    endTimer = setTimeout(endShift, timing[dir].end);
+  }
+
+  btn.addEventListener("pointerdown", (event) => {
+    if (inInterview() || (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.preventDefault();
+    btn.focus({ preventScroll: true });
+    startCharge();
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((type) => {
+    btn.addEventListener(type, () => stopCharge(false));
+  });
+  btn.addEventListener("contextmenu", (event) => event.preventDefault());
+
+  btn.addEventListener("keydown", (event) => {
+    if (inInterview() || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    if (!event.repeat) startCharge();
+  });
+  btn.addEventListener("keyup", (event) => {
+    if (event.key === "Enter" || event.key === " ") stopCharge(false);
+  });
+  btn.addEventListener("blur", () => stopCharge(false));
+
+  btn.addEventListener("click", () => {
+    if (inInterview() && !shifting) runShift("to-cas");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && shifting) {
+      swap();
+      endShift();
+    }
+  });
+})();
+
+// Resume selection feedback for the interview setup screen.
+(function initInterviewResumeUpload() {
+  const input = document.getElementById("resumeFile");
+  const name = document.getElementById("resumeFileName");
+  const drop = document.querySelector(".resume-drop");
+  if (!input || !name || !drop) return;
+
+  function showFile(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      window.alert("Please choose a resume smaller than 5 MB.");
+      input.value = "";
+      return;
+    }
+    if (!/\.(pdf|docx)$/i.test(file.name)) {
+      window.alert("Please choose a PDF or DOCX resume.");
+      input.value = "";
+      return;
+    }
+    name.textContent = file.name;
+  }
+
+  input.addEventListener("change", () => showFile(input.files?.[0]));
+  ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (event) => {
+    event.preventDefault();
+    drop.classList.add("is-dragging");
+  }));
+  ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, (event) => {
+    event.preventDefault();
+    drop.classList.remove("is-dragging");
+  }));
+  drop.addEventListener("drop", (event) => {
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    try { input.files = event.dataTransfer.files; } catch (error) { /* name feedback still works */ }
+    showFile(file);
+  });
+
+  el.startInterview?.addEventListener("click", startInterviewSession);
+  document.getElementById("startAnswer")?.addEventListener("click", beginInterviewAnswer);
+  document.getElementById("endAnswer")?.addEventListener("click", () => stopRecording(true));
+  document.getElementById("retryAnswer")?.addEventListener("click", beginInterviewAnswer);
+  document.getElementById("submitAnswer")?.addEventListener("click", () => submitInterviewTurn());
+  document.getElementById("skipQuestion")?.addEventListener("click", () => submitInterviewTurn({ skipped: true }));
+  document.getElementById("retryInterviewRequest")?.addEventListener("click", retryInterviewRequest);
+  document.getElementById("endInterview")?.addEventListener("click", endInterviewWithConfirm);
+  document.getElementById("resumeInterviewDraft")?.addEventListener("click", resumeInterviewDraft);
+  document.getElementById("roomThemeToggle")?.addEventListener("click", toggleTheme);
+  document.getElementById("returnToInterviewSetup")?.addEventListener("click", () => showPage("setup"));
+  document.getElementById("roomBrand")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    endInterviewWithConfirm();
+  });
+  el.interviewPosition?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); startInterviewSession(); }
+  });
+})();
+
+const INTERVIEW_TRANSITIONS = {
+  ready: ["generating_question", "interview_complete", "error"],
+  generating_question: ["asking_question", "interview_complete", "error"],
+  asking_question: ["requesting_microphone", "evaluating", "interview_complete", "error"],
+  requesting_microphone: ["recording", "error", "interview_complete"],
+  recording: ["transcribing", "error", "interview_complete"],
+  transcribing: ["asking_question", "error", "interview_complete"],
+  evaluating: ["preparing_follow_up", "interview_complete", "error"],
+  preparing_follow_up: ["generating_question", "interview_complete", "error"],
+  interview_complete: ["ready"],
+  error: ["generating_question", "asking_question", "evaluating", "preparing_follow_up", "ready", "interview_complete"]
+};
+
+function transitionInterview(next) {
+  const interview = state.interview;
+  if (!interview || interview.status === next) return Boolean(interview);
+  if (!INTERVIEW_TRANSITIONS[interview.status]?.includes(next)) {
+    console.warn(`Rejected interview transition: ${interview.status} -> ${next}`);
+    return false;
+  }
+  interview.status = next;
+  renderInterviewRoom();
+  return true;
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function startInterviewSession() {
+  if (el.startInterview?.disabled) return;
+  const file = el.resumeFile?.files?.[0];
+  const position = el.interviewPosition?.value.trim();
+  const fail = (message) => {
+    el.interviewFormError.textContent = message;
+    el.interviewFormError.hidden = false;
+  };
+  el.interviewFormError.hidden = true;
+  if (!file) return fail("Choose a PDF or DOC/DOCX resume to personalize your interview.");
+  if (file.size > 5 * 1024 * 1024) return fail("Your resume must be 5 MB or smaller.");
+  if (!/\.(pdf|docx)$/i.test(file.name)) return fail("Choose a PDF or DOCX resume.");
+  if (!position || position.length > 120) return fail("Enter the position you’re interviewing for (up to 120 characters).");
+
+  el.startInterview.disabled = true;
+  el.startInterview.setAttribute("aria-busy", "true");
+  try {
+    const resumeData = arrayBufferToBase64(await file.arrayBuffer());
+    const durationMinutes = Number(el.interviewDuration.value) || 20;
+    state.interview = {
+      sessionId: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      status: "ready",
+      config: {
+        position,
+        type: el.interviewType.value,
+        experience: el.interviewExperience.value,
+        difficulty: el.interviewDifficulty.value,
+        durationMinutes,
+        durationSeconds: durationMinutes * 60,
+        maxQuestions: durationMinutes === 10 ? 5 : durationMinutes === 30 ? 10 : 8
+      },
+      resume: { name: file.name, mimeType: file.type || "application/octet-stream", data: resumeData },
+      resumeSummary: "",
+      turns: [],
+      currentQuestion: null,
+      questionNumber: 0,
+      topics: [],
+      startedAt: null,
+      elapsedTimer: null,
+      answerLimit: 120,
+      answerStartedAt: null,
+      recordedAnswerSeconds: 0,
+      pendingTurn: null,
+      requestController: null,
+      transcriptionController: null,
+      requestPromise: null,
+      transcriptionPromise: null,
+      retryAction: "start"
+    };
+    await generateInterviewOpening();
+  } catch (error) {
+    if (state.interview) {
+      transitionInterview("error");
+      showRoomError(error.message || "Could not read the selected resume.");
+      showPage("interviewRoom");
+    } else {
+      fail("Could not read the selected resume. Choose it again and retry.");
+    }
+  } finally {
+    if (el.startInterview) {
+      el.startInterview.disabled = false;
+      el.startInterview.removeAttribute("aria-busy");
+    }
+  }
+}
+
+async function interviewRequest(path, payload, timeoutMs = 60000) {
+  const interview = state.interview;
+  const controller = new AbortController();
+  interview.requestController = controller;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(path, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, sessionId: interview.sessionId }), signal: controller.signal
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `Interview service returned ${response.status}.`);
+    return result;
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("The interview service took too long to respond. Your answer is saved here; try again.");
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    if (interview.requestController === controller) interview.requestController = null;
+  }
+}
+
+async function generateInterviewOpening() {
+  const interview = state.interview;
+  if (!interview || !transitionInterview("generating_question")) return;
+  interview.retryAction = "start";
+  showPage("interviewRoom");
+  setRoomBusy("Preparing your first question…");
+  const promise = interviewRequest("/api/interview/start", {
+    config: interview.config,
+    resume: interview.resume
+  });
+  interview.requestPromise = promise;
+  try {
+    const result = await promise;
+    if (state.interview !== interview || interview.status !== "generating_question") return;
+    const question = validateInterviewQuestion(result.question);
+    if (!question) throw new Error("The interviewer returned an invalid first question. Please retry.");
+    interview.resumeSummary = String(result.resume_summary || "").slice(0, 5000);
+    interview.provider = result.provider || "api";
+    interview.currentQuestion = question;
+    interview.questionNumber = 1;
+    interview.startedAt = Date.now();
+    startInterviewElapsedTimer();
+    transitionInterview("asking_question");
+    persistInterviewDraft();
+    renderInterviewRoom();
+  } catch (error) {
+    if (state.interview !== interview || interview.status === "interview_complete") return;
+    interview.retryAction = "start";
+    transitionInterview("error");
+    showRoomError(error.message || "Could not prepare the interview question.");
+  } finally {
+    interview.requestPromise = null;
+  }
+}
+
+function validateInterviewQuestion(question) {
+  if (!question || typeof question !== "object") return null;
+  const text = String(question.question || "").trim();
+  if (text.length < 8 || text.length > 500) return null;
+  return {
+    id: String(question.id || crypto.randomUUID?.() || Date.now()),
+    question: text,
+    category: String(question.category || "behavioral").slice(0, 40),
+    topic: String(question.topic || "general").slice(0, 80),
+    difficulty: String(question.difficulty || state.interview.config.difficulty).slice(0, 20),
+    isFollowUp: Boolean(question.is_follow_up ?? question.isFollowUp),
+    followUpDepth: Math.max(0, Math.min(3, Number(question.follow_up_depth ?? question.followUpDepth) || 0)),
+    reason: String(question.reason || "").slice(0, 300),
+    evaluationFocus: Array.isArray(question.evaluation_focus || question.evaluationFocus) ? (question.evaluation_focus || question.evaluationFocus).slice(0, 6) : []
+  };
+}
+
+function startInterviewElapsedTimer() {
+  const interview = state.interview;
+  clearInterval(interview.elapsedTimer);
+  interview.elapsedTimer = setInterval(() => {
+    if (state.interview !== interview || !interview.startedAt || interview.status === "interview_complete") return;
+    const elapsed = Math.floor((Date.now() - interview.startedAt) / 1000);
+    el.roomElapsed.textContent = `${formatTime(elapsed)} / ${formatTime(interview.config.durationSeconds)}`;
+    if (elapsed >= interview.config.durationSeconds) {
+      if (interview.status === "recording") stopRecording(true);
+      else if (interview.status === "requesting_microphone") finishInterview("Your planned interview time has ended.");
+      else if (interview.status === "asking_question" && !el.interviewTranscript.value.trim()) finishInterview("Your planned interview time has ended.");
+    }
+  }, 1000);
+}
+
+function persistInterviewDraft() {
+  const interview = state.interview;
+  if (!interview || !interview.currentQuestion || interview.status === "interview_complete") return;
+  try {
+    localStorage.setItem(INTERVIEW_DRAFT_KEY, JSON.stringify({
+      sessionId: interview.sessionId,
+      config: interview.config,
+      resumeSummary: interview.resumeSummary,
+      turns: interview.turns,
+      currentQuestion: interview.currentQuestion,
+      questionNumber: interview.questionNumber,
+      topics: interview.topics,
+      elapsedSeconds: Math.floor((Date.now() - interview.startedAt) / 1000),
+      provider: interview.provider
+    }));
+    if (el.resumeInterviewDraft) el.resumeInterviewDraft.hidden = false;
+  } catch { /* In-memory session remains available if storage is unavailable. */ }
+}
+
+function resumeInterviewDraft() {
+  let draft;
+  try { draft = JSON.parse(localStorage.getItem(INTERVIEW_DRAFT_KEY) || "null"); }
+  catch { draft = null; }
+  if (!draft?.config || !draft.currentQuestion || !Array.isArray(draft.turns)) {
+    localStorage.removeItem(INTERVIEW_DRAFT_KEY);
+    el.resumeInterviewDraft.hidden = true;
+    return;
+  }
+  state.interview = {
+    sessionId: draft.sessionId || String(Date.now()),
+    status: "ready",
+    config: draft.config,
+    resume: { name: "Resume", mimeType: "", data: "" },
+    resumeSummary: String(draft.resumeSummary || "").slice(0, 5000),
+    turns: draft.turns,
+    currentQuestion: validateInterviewQuestion(draft.currentQuestion),
+    questionNumber: Math.max(1, Number(draft.questionNumber) || 1),
+    topics: Array.isArray(draft.topics) ? draft.topics.slice(0, 30) : [],
+    startedAt: Date.now() - Math.max(0, Number(draft.elapsedSeconds) || 0) * 1000,
+    elapsedTimer: null,
+    answerLimit: 120,
+    answerStartedAt: null,
+    recordedAnswerSeconds: 0,
+    pendingTurn: null,
+    requestController: null,
+    transcriptionController: null,
+    requestPromise: null,
+    transcriptionPromise: null,
+    provider: draft.provider || "local",
+    retryAction: "record"
+  };
+  transitionInterview("generating_question");
+  startInterviewElapsedTimer();
+  transitionInterview("asking_question");
+  el.interviewTranscript.value = "";
+  el.transcriptState.textContent = "Waiting for your answer";
+  showPage("interviewRoom");
+  renderInterviewRoom();
+}
+
+function interviewAnswerLimit(question) {
+  const remaining = Math.max(15, state.interview.config.durationSeconds - Math.floor((Date.now() - state.interview.startedAt) / 1000));
+  const category = String(question?.category || "").toLowerCase();
+  const suggested = /technical|behavioral|project|situational/.test(category) ? 120 : 90;
+  return Math.min(suggested, remaining);
+}
+
+async function beginInterviewAnswer() {
+  const interview = state.interview;
+  if (!interview || !["asking_question", "error"].includes(interview.status) || !interview.currentQuestion || state.isRecording) return;
+  if (interview.startedAt && Date.now() - interview.startedAt >= interview.config.durationSeconds * 1000) {
+    await finishInterview("Your planned interview time has ended.");
+    return;
+  }
+  el.roomError.hidden = true;
+  if (interview.status === "error" && !transitionInterview("asking_question")) return;
+  interview.answerLimit = interviewAnswerLimit(interview.currentQuestion);
+  interview.recordedAnswerSeconds = 0;
+  interview.retryAction = "record";
+  if (!transitionInterview("requesting_microphone")) return;
+  el.roomStateLabel.textContent = "Waiting for microphone permission…";
+  el.roomRecordingLabel.textContent = "CONNECTING MICROPHONE";
+  el.roomRecordingHint.textContent = "Approve microphone access in your browser. Recording starts after permission is granted.";
+  renderInterviewRoom();
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    transitionInterview("error");
+    showRoomError("This browser cannot record audio here. Try a current version of Chrome, Edge, or Safari with microphone access enabled.");
+    return;
+  }
+  await startRecording();
+}
+
+async function transcribeInterviewAudio() {
+  const interview = state.interview;
+  if (!interview || interview.status !== "transcribing") return;
+  const preview = sanitizeTranscript(el.interviewTranscript.value);
+  el.roomStateLabel.textContent = "Transcribing your answer…";
+  el.transcriptState.textContent = "Transcribing…";
+  renderInterviewRoom();
+  let transcript = "";
+  let errorMessage = "";
+  if (state.audioBlob?.size) {
+    const controller = new AbortController();
+    interview.transcriptionController = controller;
+    try {
+      const response = await fetch("/api/transcribe", {
+        method: "POST", headers: { "content-type": state.audioBlob.type || "audio/webm" }, body: state.audioBlob, signal: controller.signal
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) transcript = String(result.text || "").trim();
+      else if (result.code !== "no_api_key") errorMessage = result.error || "Transcription service failed.";
+    } catch (error) {
+      if (state.interview !== interview || interview.status !== "transcribing") return;
+      errorMessage = "Could not reach transcription. Your live transcript is still available to review.";
+    } finally {
+      if (interview.transcriptionController === controller) interview.transcriptionController = null;
+    }
+  }
+  if (state.interview !== interview || interview.status !== "transcribing") return;
+  const usedBrowserTranscript = !transcript && Boolean(preview);
+  if (!transcript) transcript = preview;
+  if (!transcript) {
+    interview.retryAction = "record";
+    transitionInterview("error");
+    el.transcriptState.textContent = "No speech recognized";
+    showRoomError(errorMessage || "No speech was recognized. Try recording again, or check microphone access.");
+    return;
+  }
+  el.interviewTranscript.value = transcript;
+  el.transcriptState.textContent = usedBrowserTranscript ? "Browser transcript · verify before submitting" : "Review and edit before submitting";
+  interview.retryAction = "record";
+  transitionInterview("asking_question");
+  if (errorMessage) showRoomError(`${errorMessage} The browser transcript is available below; review it before submitting.`);
+  renderInterviewRoom();
+}
+
+async function submitInterviewTurn(options = {}) {
+  const interview = state.interview;
+  if (!interview || !["asking_question", "error"].includes(interview.status) || !interview.currentQuestion) return;
+  const skipped = Boolean(options.skipped);
+  const transcript = skipped ? "" : sanitizeTranscript(el.interviewTranscript.value);
+  if (!skipped && transcript.split(/\s+/).filter(Boolean).length < 5) {
+    showRoomError("Please add a little more to your answer, or choose Skip question.");
+    return;
+  }
+  el.roomError.hidden = true;
+  if (interview.status === "error" && !transitionInterview("asking_question")) return;
+  interview.pendingTurn = interview.pendingTurn || {
+    id: interview.currentQuestion.id,
+    question: { ...interview.currentQuestion },
+    transcript,
+    skipped,
+    timestamp: new Date().toISOString(),
+    duration: interview.recordedAnswerSeconds || 0,
+    evaluation: null
+  };
+  if (!transitionInterview("evaluating")) return;
+  interview.retryAction = "continue";
+  renderInterviewRoom();
+  const elapsedSeconds = Math.floor((Date.now() - interview.startedAt) / 1000);
+  const payload = {
+    config: interview.config,
+    resumeSummary: interview.resumeSummary,
+    turns: [...interview.turns, interview.pendingTurn].map((turn) => ({
+      question: turn.question.question,
+      category: turn.question.category,
+      topic: turn.question.topic,
+      answer: turn.transcript,
+      skipped: turn.skipped,
+      evaluation: turn.evaluation
+    })),
+    currentTurn: {
+      question: interview.pendingTurn.question.question,
+      category: interview.pendingTurn.question.category,
+      topic: interview.pendingTurn.question.topic,
+      answer: interview.pendingTurn.transcript,
+      skipped: interview.pendingTurn.skipped
+    },
+    questionNumber: interview.questionNumber,
+    elapsedSeconds,
+    topicsCovered: interview.topics,
+    timeRemainingSeconds: Math.max(0, interview.config.durationSeconds - elapsedSeconds)
+  };
+  const promise = interviewRequest("/api/interview/continue", payload);
+  interview.requestPromise = promise;
+  try {
+    const result = await promise;
+    if (state.interview !== interview || interview.status !== "evaluating") return;
+    if (result.evaluation && !validateInterviewEvaluation(result.evaluation)) throw new Error("The answer evaluation was incomplete. Retry to preserve this turn.");
+    const isComplete = Boolean(result.complete) || interview.questionNumber >= interview.config.maxQuestions || Number(result.time_remaining_seconds) <= 0;
+    const nextQuestion = isComplete ? null : validateInterviewQuestion(result.next_question);
+    if (!isComplete && !nextQuestion) throw new Error("The interviewer could not prepare a valid follow-up. Retry to keep going.");
+    if (!isComplete) {
+      transitionInterview("preparing_follow_up");
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    interview.pendingTurn.evaluation = result.evaluation || null;
+    interview.turns.push(interview.pendingTurn);
+    if (!interview.pendingTurn.skipped && interview.pendingTurn.question.topic) interview.topics.push(interview.pendingTurn.question.topic);
+    interview.pendingTurn = null;
+    interview.provider = result.provider || interview.provider;
+    if (isComplete) {
+      await finishInterview("Interview complete.");
+      return;
+    }
+    transitionInterview("generating_question");
+    interview.currentQuestion = nextQuestion;
+    interview.questionNumber += 1;
+    interview.recordedAnswerSeconds = 0;
+    interview.retryAction = "record";
+    transitionInterview("asking_question");
+    persistInterviewDraft();
+    el.interviewTranscript.value = "";
+    el.transcriptState.textContent = "Waiting for your answer";
+    renderInterviewRoom();
+  } catch (error) {
+    if (state.interview !== interview || interview.status === "interview_complete") return;
+    interview.retryAction = "continue";
+    transitionInterview("error");
+    showRoomError(error.message || "Could not evaluate this answer. It is saved in this session; retry when ready.");
+  } finally {
+    interview.requestPromise = null;
+  }
+}
+
+function validateInterviewEvaluation(evaluation) {
+  const scores = evaluation?.scores;
+  if (!scores || !["relevance", "accuracy", "depth", "reasoning", "clarity"].every((key) => Number.isFinite(Number(scores[key])))) return false;
+  return true;
+}
+
+function retryInterviewRequest() {
+  const interview = state.interview;
+  if (!interview || interview.status !== "error") return;
+  el.roomError.hidden = true;
+  if (interview.retryAction === "start") generateInterviewOpening();
+  else if (interview.retryAction === "continue") submitInterviewTurn({ retry: true });
+  else if (interview.retryAction === "record") beginInterviewAnswer();
+}
+
+function showRoomError(message) {
+  if (!el.roomError) return;
+  el.roomError.textContent = message;
+  el.roomError.hidden = false;
+}
+
+function setRoomBusy(message) {
+  el.roomStateLabel.textContent = message;
+  el.roomQuestion.textContent = "Preparing your interview…";
+  el.roomInstruction.textContent = "The interviewer is reviewing your setup.";
+  renderInterviewRoom();
+}
+
+function renderInterviewRoom() {
+  const interview = state.interview;
+  if (!interview || !el.interviewRoom) return;
+  const status = interview.status;
+  const question = interview.currentQuestion;
+  const count = interview.questionNumber || 1;
+  const total = interview.config.maxQuestions;
+  const complete = status === "interview_complete";
+  const recording = status === "recording";
+  const reviewReady = status === "asking_question" && Boolean(el.interviewTranscript.value.trim());
+  const waiting = ["generating_question", "requesting_microphone", "evaluating", "preparing_follow_up", "transcribing"].includes(status);
+  const stateLabels = {
+    ready: "Ready to begin", generating_question: "Preparing your question…", requesting_microphone: "Waiting for microphone permission…", asking_question: "Your turn to answer",
+    recording: "Recording your answer", transcribing: "Transcribing your answer…", evaluating: "Evaluating your response…",
+    preparing_follow_up: "Preparing your next question…", interview_complete: "Interview complete", error: "Action needed"
+  };
+  el.roomStateLabel.textContent = stateLabels[status] || "Interview ready";
+  el.roomStateDot.dataset.state = recording ? "recording" : status === "error" ? "error" : status;
+  if (question) {
+    el.roomQuestion.textContent = question.question;
+    el.roomQuestionNumber.textContent = `QUESTION ${count} OF ${total}`;
+    el.roomQuestionCategory.textContent = question.category.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+    el.roomQuestionDifficulty.textContent = question.difficulty.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase();
+    el.roomInstruction.textContent = interview.provider === "local"
+      ? "AI service is not configured; this session is using local role-based prompts and heuristic feedback."
+      : question.isFollowUp ? "Follow-up · Build on the detail you just shared." : "Take a moment to think. Start when you’re ready.";
+  }
+  el.roomProgress.textContent = `Question ${Math.min(count, total)} of ${total}`;
+  el.roomProgressSteps.innerHTML = Array.from({ length: total }, (_, index) => {
+    const step = index + 1;
+    const stateName = step <= interview.turns.length ? "completed" : step === count ? "current" : "upcoming";
+    return `<li class="${stateName}"><span aria-label="Question ${step}, ${stateName}"${stateName === "current" ? ' aria-current="step"' : ""}>${step}</span></li>`;
+  }).join("");
+  el.roomTurnCount.textContent = `${interview.turns.length} ${interview.turns.length === 1 ? "turn" : "turns"}`;
+  el.roomTurnHistory.innerHTML = interview.turns.length ? interview.turns.slice().reverse().map((turn, index) => `
+    <article class="room-turn"><strong>${escapeHtml(turn.question.question)}</strong><p>${escapeHtml(turn.skipped ? "Skipped" : turn.transcript || "No transcript saved.")}</p></article>
+  `).join("") : '<p class="room-empty">Your completed answers will appear here.</p>';
+  el.startAnswer.hidden = !(status === "asking_question" && !reviewReady) && !(status === "error" && interview.retryAction === "record");
+  el.startAnswer.textContent = status === "error" && interview.retryAction === "record" ? "Try again" : "Start answer";
+  el.startAnswer.disabled = recording || waiting || complete;
+  el.endAnswer.hidden = !recording;
+  el.retryAnswer.hidden = !reviewReady;
+  el.submitAnswer.hidden = !reviewReady;
+  el.returnToInterviewSetup.hidden = !complete;
+  document.getElementById("endInterview").hidden = complete;
+  el.skipQuestion.hidden = !(status === "asking_question" && !reviewReady);
+  el.retryInterviewRequest.hidden = status !== "error" || interview.retryAction === "record";
+  el.retryInterviewRequest.textContent = interview.retryAction === "start" ? "Retry question" : "Retry evaluation";
+  el.roomRecordingLabel.textContent = recording ? "RECORDING" : reviewReady ? "ANSWER READY TO SUBMIT" : "YOUR TURN TO ANSWER";
+  if (status === "asking_question" && !reviewReady) el.roomRecordingHint.textContent = `Up to ${formatTime(interview.answerLimit)} for this answer. Your microphone starts only when you choose.`;
+  if (complete) el.roomRecordingHint.textContent = "Your interview summary is ready.";
+  if (el.roomError.hidden) el.roomError.textContent = "";
+}
+
+function endInterviewWithConfirm() {
+  const interview = state.interview;
+  if (!interview || interview.status === "interview_complete") return;
+  const recording = state.isRecording;
+  const pending = Boolean(interview.pendingTurn);
+  const message = recording
+    ? "End this interview? The answer currently recording will be discarded; completed answers will be saved."
+    : pending
+      ? "End this interview now? The answer currently being evaluated will not be included. Earlier completed answers will be saved."
+      : el.interviewTranscript.value.trim()
+      ? "End this interview now? The current unsubmitted answer will not be evaluated or included. Completed answers will be saved in your History."
+      : "End this interview now? Completed answers will be saved in your History.";
+  if (!window.confirm(message)) return;
+  if (recording) stopRecording(false);
+  if (interview.requestController) interview.requestController.abort();
+  if (interview.transcriptionController) interview.transcriptionController.abort();
+  finishInterview("Interview ended early.");
+}
+
+async function finishInterview(reason) {
+  const interview = state.interview;
+  if (!interview || interview.status === "interview_complete") return;
+  if (state.isRecording) stopRecording(false);
+  clearInterval(interview.elapsedTimer);
+  interview.elapsedTimer = null;
+  if (interview.requestController) interview.requestController.abort();
+  if (interview.transcriptionController) interview.transcriptionController.abort();
+  releaseMicrophone();
+  if (!transitionInterview("interview_complete")) return;
+  stopWaveform();
+  try { localStorage.removeItem(INTERVIEW_DRAFT_KEY); } catch { /* ignore unavailable storage */ }
+  if (el.resumeInterviewDraft) el.resumeInterviewDraft.hidden = true;
+  interview.resume.data = "";
+  if (!interview.turns.length) {
+    el.roomStateLabel.textContent = reason;
+    el.roomInstruction.textContent = "No interview turns were completed, so nothing was added to History.";
+    return;
+  }
+  if (!interview.turns.some((turn) => turn.evaluation)) {
+    const answerText = interview.turns.map((turn, index) => `Question ${index + 1}: ${turn.question.question}\n${turn.skipped ? "[Skipped]" : `Answer: ${turn.transcript}`}`).join("\n\n");
+    const duration = Math.max(1, Math.floor((Date.now() - interview.startedAt) / 1000));
+    const speakingSeconds = interview.turns.reduce((sum, turn) => sum + Number(turn.duration || 0), 0);
+    const answerTranscript = interview.turns.filter((turn) => !turn.skipped).map((turn) => turn.transcript).join(" ");
+    const words = (answerTranscript.match(wordRegex) || []).length;
+    const fillerCount = countFillerWords(answerTranscript);
+    const result = {
+      id: interview.sessionId, date: new Date().toISOString(),
+      challenge: { label: `Interview · ${interview.config.position}`, mode: "interview", text: interview.turns[0]?.question.question || "Interview session", difficulty: interview.config.difficulty, duration, position: interview.config.position },
+      transcript: answerText, overall: null, scores: {}, strengths: [], improvements: [],
+      advice: "No answers were evaluated. Skipped turns are recorded without a score.",
+      provider: interview.provider || "local",
+      metrics: { duration: speakingSeconds, words, wpm: speakingSeconds ? Math.round((words / speakingSeconds) * 60) : 0, fillerCount, fillerRate: words ? round1((fillerCount / words) * 100) : 0 },
+      interview: { turns: interview.turns, config: interview.config, completionReason: reason }
+    };
+    saveAttempt(result);
+    renderProgress();
+    renderHistory();
+    renderResult(result);
+    showPage("results");
+    return;
+  }
+  const evaluated = interview.turns.filter((turn) => turn.evaluation);
+  const keys = ["relevance", "accuracy", "depth", "reasoning", "clarity"];
+  const scores = Object.fromEntries(keys.map((key) => [key, Number((evaluated.reduce((sum, turn) => sum + Number(turn.evaluation.scores[key] || 0), 0) / evaluated.length).toFixed(1))]));
+  const overall = Number((evaluated.reduce((sum, turn) => sum + Number(turn.evaluation.overall || averageScores(turn.evaluation.scores)), 0) / evaluated.length).toFixed(1));
+  const answerText = interview.turns.map((turn, index) => `Question ${index + 1}: ${turn.question.question}\n${turn.skipped ? "[Skipped]" : `Answer: ${turn.transcript}`}\n${turn.evaluation?.feedback ? `Feedback: ${turn.evaluation.feedback}\nAnswer score: ${Number(turn.evaluation.overall || averageScores(turn.evaluation.scores)).toFixed(1)}/10` : ""}`).join("\n\n");
+  const answerTranscript = interview.turns.filter((turn) => !turn.skipped).map((turn) => turn.transcript).join(" ");
+  const words = (answerTranscript.match(wordRegex) || []).length;
+  const fillerCount = countFillerWords(answerTranscript);
+  const duration = Math.max(1, Math.floor((Date.now() - interview.startedAt) / 1000));
+  const speakingSeconds = Math.max(1, interview.turns.reduce((sum, turn) => sum + Number(turn.duration || 0), 0));
+  const result = {
+    id: interview.sessionId,
+    date: new Date().toISOString(),
+    challenge: { label: `Interview · ${interview.config.position}`, mode: "interview", text: interview.turns[0]?.question.question || "Interview session", difficulty: interview.config.difficulty, duration, position: interview.config.position },
+    transcript: answerText,
+    overall, scores,
+    strengths: [...new Set(evaluated.flatMap((turn) => turn.evaluation.strengths || []))].slice(0, 6),
+    improvements: [...new Set(evaluated.flatMap((turn) => turn.evaluation.improvements || []))].slice(0, 6),
+    advice: [...new Set(evaluated.flatMap((turn) => turn.evaluation.improvements || []))].slice(0, 3),
+    provider: interview.provider || "api",
+    metrics: { duration: speakingSeconds, words, wpm: Math.round((words / speakingSeconds) * 60), fillerCount, fillerRate: words ? round1((fillerCount / words) * 100) : 0 },
+    interview: { turns: interview.turns, config: interview.config, completionReason: reason }
+  };
+  saveAttempt(result);
+  renderProgress();
+  renderHistory();
+  renderResult(result);
+  el.resultKind.textContent = "Interview report";
+  el.resultSection.textContent = `${evaluated.length} answers evaluated · ${interview.turns.filter((turn) => turn.skipped).length} skipped`;
+  el.resultDuration.textContent = `${interview.config.durationMinutes} minute session · ${formatTime(duration)} elapsed`;
+  if (el.resultTranscript) el.resultTranscript.innerHTML = renderInterviewReportTurns(interview.turns);
+  if (el.retryAdvice) {
+    const practicePlan = result.advice.length ? result.advice : ["Keep using specific examples and a clear beginning, middle, and outcome in each answer."];
+    el.retryAdvice.innerHTML = `<ul class="practice-plan-list">${practicePlan.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul>`;
+  }
+  el.scoreSummary.textContent = `${evaluated.length} evaluated answers · ${interview.turns.length} turns · ${reason}`;
+  showPage("results");
+}
+
+function renderInterviewReportTurns(turns) {
+  return turns.map((turn, index) => {
+    const question = turn.question || {};
+    const score = turn.evaluation
+      ? Number(turn.evaluation.overall || averageScores(turn.evaluation.scores)).toFixed(1)
+      : null;
+    return `<article class="interview-turn-report">
+      <header class="interview-turn-heading">
+        <div><span class="turn-index">Question ${index + 1}</span><span class="turn-category">${escapeHtml(question.category || "Interview")}</span></div>
+        ${score ? `<span class="turn-score">${score}<small>/10</small></span>` : `<span class="turn-skipped">${turn.skipped ? "Skipped" : "Not scored"}</span>`}
+      </header>
+      <div class="turn-report-content">
+        <section class="turn-report-question"><h3>Question</h3><p>${escapeHtml(question.question || "Question unavailable.")}</p></section>
+        <section class="turn-report-answer"><h3>Your answer</h3><p>${escapeHtml(turn.skipped ? "This question was skipped." : turn.transcript || "No answer transcript was saved.")}</p></section>
+        ${turn.evaluation?.feedback ? `<section class="turn-report-feedback"><h3>Interviewer feedback</h3><p>${escapeHtml(turn.evaluation.feedback)}</p></section>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+function averageScores(scores) {
+  const values = Object.values(scores || {}).map(Number).filter(Number.isFinite);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+window.addEventListener("beforeunload", (event) => {
+  if (state.interview && !["interview_complete", "ready"].includes(state.interview.status)) {
+    if (state.isRecording) stopRecording(false);
+    releaseMicrophone();
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
