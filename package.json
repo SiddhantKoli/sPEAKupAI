@@ -5,11 +5,16 @@
   "description": "AI impromptu speaking coach — think fast, speak better.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "build": "esbuild firebase-auth.js --bundle --format=iife --target=es2020 --outfile=firebase-auth.bundle.js",
+    "start": "npm run build && node server.js",
+    "dev": "npm run build && node server.js"
   },
   "engines": {
     "node": ">=18"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "firebase": "^12.19.0"
+  }
 }

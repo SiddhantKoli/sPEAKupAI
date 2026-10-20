@@ -26,3 +26,6 @@ Thumbs.db
 
 .vercel
 .env*
+firebase-config.local.js
+node_modules/
+firebase-auth.bundle.js

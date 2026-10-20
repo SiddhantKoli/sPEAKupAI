@@ -262,6 +262,12 @@ const prompts = {
 const STORAGE_KEY = "speakup-history";
 const THEME_KEY = "speakup-theme";
 const INTERVIEW_DRAFT_KEY = "speakup-interview-draft";
+const PROFILE_STORAGE_KEY = "speakup-profile-v1";
+const PROFILE_DEFAULTS = {
+  name: "", handle: "", weeklyGoal: 3,
+  mascot: { character: "grandma", hair: "#c7d0dc", glasses: "square", shirt: "#71345f", accessory: "scarf" }
+};
+const MASCOT_DEFAULTS = PROFILE_DEFAULTS.mascot;
 const PREP_SECONDS = 10;
 const PREP_RING = 2 * Math.PI * 52;
 const FLOW_PAGES = new Set(["tumbler", "prepare", "speaking", "processing", "interviewRoom"]);
@@ -310,6 +316,7 @@ const state = {
   startedAt: null,
   remaining: 60,
   history: loadHistory(),
+  profile: loadProfile(),
   activeResult: null,
   interview: null
 };
@@ -407,6 +414,40 @@ const el = {
   clearHistory: document.querySelector("#clearHistory"),
   historyList: document.querySelector("#historyList"),
   trends: document.querySelector("#trendGrid"),
+  profileForm: document.querySelector("#profileForm"),
+  profileName: document.querySelector("#profileName"),
+  profileHandleInput: document.querySelector("#profileHandleInput"),
+  profileDisplayName: document.querySelector("#profileDisplayName"),
+  profileHandle: document.querySelector("#profileHandle"),
+  profileMascot: document.querySelector("#profileMascot"),
+  profileSaveStatus: document.querySelector("#profileSaveStatus"),
+  weeklyGoal: document.querySelector("#weeklyGoal"),
+  mascotCustomizer: document.querySelector("#mascotCustomizer"),
+  mascotName: document.querySelector("#mascotName"),
+  googleSignIn: document.querySelector("#googleSignIn"),
+  googleSignOut: document.querySelector("#googleSignOut"),
+  accountStatus: document.querySelector("#accountStatus"),
+  accountEntryLink: document.querySelector("#accountEntryLink"),
+  authForm: document.querySelector("#authForm"),
+  authName: document.querySelector("#authName"),
+  authNameLabel: document.querySelector("#authNameLabel"),
+  authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
+  authTitle: document.querySelector("#authTitle"),
+  authSubtitle: document.querySelector("#authSubtitle"),
+  authSubmit: document.querySelector("#authSubmit"),
+  authFeedback: document.querySelector("#authFeedback"),
+  authGoogleSignIn: document.querySelector("#authGoogleSignIn"),
+  authForgotPassword: document.querySelector("#authForgotPassword"),
+  weeklyGoalCount: document.querySelector("#weeklyGoalCount"),
+  weeklyGoalTarget: document.querySelector("#weeklyGoalTarget"),
+  weeklyGoalProgress: document.querySelector("#weeklyGoalProgress"),
+  weeklyGoalFill: document.querySelector("#weeklyGoalFill"),
+  goalWeek: document.querySelector("#goalWeek"),
+  weeklyGoalMessage: document.querySelector("#weeklyGoalMessage"),
+  currentStreak: document.querySelector("#currentStreak"),
+  streakMessage: document.querySelector("#streakMessage"),
+  bestStreak: document.querySelector("#bestStreak"),
   themeToggle: document.querySelector("#themeToggle"),
   exportPdf: document.querySelector("#exportPdf"),
   printSheet: document.querySelector("#printSheet"),
@@ -1530,6 +1571,9 @@ function saveAttempt(result) {
   state.history = state.history.slice(0, 25);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history)); }
   catch { /* Keep the result available in memory for this session. */ }
+  window.SpeakUpFirebase?.saveSession(result).catch((error) => {
+    if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Saved on this device. Cloud history sync failed: ${error.message}`;
+  });
 }
 
 function loadHistory() {
@@ -1540,8 +1584,148 @@ function loadHistory() {
   }
 }
 
+function loadProfile() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "null");
+    return saved && typeof saved === "object"
+      ? { ...PROFILE_DEFAULTS, ...saved, mascot: { ...MASCOT_DEFAULTS, ...(saved.mascot || {}) } }
+      : { ...PROFILE_DEFAULTS, mascot: { ...MASCOT_DEFAULTS } };
+  } catch {
+    return { ...PROFILE_DEFAULTS, mascot: { ...MASCOT_DEFAULTS } };
+  }
+}
+
+function saveProfile() {
+  try {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(state.profile));
+    window.SpeakUpFirebase?.saveProfile(state.profile).catch((error) => {
+      if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Saved on this device. Cloud save failed: ${error.message}`;
+    });
+    return true;
+  } catch {
+    if (el.profileSaveStatus) el.profileSaveStatus.textContent = "Couldn’t save here. Check this browser’s storage settings.";
+    return false;
+  }
+}
+
+function localDayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function shiftDayKey(key, amount) {
+  const [year, month, day] = key.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  date.setDate(date.getDate() + amount);
+  return localDayKey(date);
+}
+
+function attemptDayKeys() {
+  return state.history
+    .map((item) => new Date(item.date))
+    .filter((date) => Number.isFinite(date.getTime()))
+    .map(localDayKey);
+}
+
+function streakStats(dayKeys) {
+  const uniqueDays = [...new Set(dayKeys)].sort();
+  const days = new Set(uniqueDays);
+  const today = localDayKey(new Date());
+  const start = days.has(today) ? today : days.has(shiftDayKey(today, -1)) ? shiftDayKey(today, -1) : null;
+  let current = 0;
+  if (start) {
+    let day = start;
+    while (days.has(day)) {
+      current += 1;
+      day = shiftDayKey(day, -1);
+    }
+  }
+
+  let best = 0;
+  let run = 0;
+  let previous = "";
+  uniqueDays.forEach((day) => {
+    run = previous && shiftDayKey(previous, 1) === day ? run + 1 : 1;
+    best = Math.max(best, run);
+    previous = day;
+  });
+  return { current, best, days };
+}
+
+function weekBounds(now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  return { start, startKey: localDayKey(start) };
+}
+
+function renderProfile() {
+  const profile = state.profile;
+  profile.mascot = { ...MASCOT_DEFAULTS, ...(profile.mascot || {}) };
+  const goal = Math.min(7, Math.max(1, Number(profile.weeklyGoal) || 3));
+
+  if (el.profileName && document.activeElement !== el.profileName) el.profileName.value = profile.name || "";
+  if (el.profileHandleInput && document.activeElement !== el.profileHandleInput) el.profileHandleInput.value = profile.handle || "";
+  if (el.weeklyGoal) el.weeklyGoal.value = String(goal);
+  if (el.profileDisplayName) el.profileDisplayName.textContent = profile.name || "The next big voice";
+  if (el.profileHandle) el.profileHandle.textContent = profile.handle ? `@${profile.handle}` : "A profile that stays on this device";
+  const mascot = profile.mascot;
+  if (el.profileMascot) {
+    el.profileMascot.dataset.character = mascot.character;
+    el.profileMascot.dataset.glasses = mascot.glasses;
+    el.profileMascot.dataset.accessory = mascot.accessory;
+    el.profileMascot.style.setProperty("--hair-color", mascot.hair);
+    el.profileMascot.style.setProperty("--shirt-color", mascot.shirt);
+    el.profileMascot.setAttribute("aria-label", `Your ${mascot.character} speaking coach`);
+  }
+  if (el.mascotName) el.mascotName.textContent = `Your ${mascot.character} coach`;
+  el.mascotCustomizer?.querySelectorAll("[data-option]").forEach((group) => {
+    group.querySelectorAll("button[data-value]").forEach((button) => {
+      const selected = mascot[group.dataset.option] === button.dataset.value;
+      button.setAttribute("aria-pressed", String(selected));
+      button.classList.toggle("is-selected", selected);
+    });
+  });
+
+  const dayKeys = attemptDayKeys();
+  const streak = streakStats(dayKeys);
+  const { startKey } = weekBounds();
+  const weekDays = Array.from({ length: 7 }, (_, index) => shiftDayKey(startKey, index));
+  const weekCount = dayKeys.filter((day) => day >= startKey && day <= weekDays[6]).length;
+  const complete = weekCount >= goal;
+  const progress = Math.min(100, Math.round((weekCount / goal) * 100));
+
+  if (el.weeklyGoalCount) el.weeklyGoalCount.textContent = String(weekCount);
+  if (el.weeklyGoalTarget) el.weeklyGoalTarget.textContent = `of ${goal} session${goal === 1 ? "" : "s"}`;
+  if (el.weeklyGoalProgress) {
+    el.weeklyGoalProgress.setAttribute("aria-valuemax", String(goal));
+    el.weeklyGoalProgress.setAttribute("aria-valuenow", String(Math.min(goal, weekCount)));
+  }
+  if (el.weeklyGoalFill) el.weeklyGoalFill.style.width = `${progress}%`;
+  if (el.weeklyGoalMessage) {
+    el.weeklyGoalMessage.textContent = complete
+      ? "Goal complete. Give yourself credit, then keep the good thing going."
+      : `${goal - weekCount} more session${goal - weekCount === 1 ? "" : "s"} to hit your weekly goal.`;
+  }
+  if (el.goalWeek) {
+    const today = localDayKey(new Date());
+    el.goalWeek.innerHTML = weekDays.map((day, index) => {
+      const count = dayKeys.filter((key) => key === day).length;
+      const date = new Date(`${day}T12:00:00`);
+      const label = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
+      return `<span class="goal-day${count ? " is-active" : ""}${day === today ? " is-today" : ""}" title="${label}: ${count} session${count === 1 ? "" : "s"}"><small>${["M", "T", "W", "T", "F", "S", "S"][index]}</small><i>${count ? "✓" : ""}</i></span>`;
+    }).join("");
+  }
+  if (el.currentStreak) el.currentStreak.textContent = String(streak.current);
+  if (el.bestStreak) el.bestStreak.textContent = `${streak.best} day${streak.best === 1 ? "" : "s"}`;
+  if (el.streakMessage) {
+    el.streakMessage.textContent = streak.current
+      ? "You’re keeping the promise you made to yourself."
+      : "One small practice session is enough to start a fresh streak.";
+  }
+}
+
 function renderProgress() {
   renderTrends();
+  renderProfile();
   const attempts = state.history.filter((item) => Number.isFinite(item.overall) && item.overall > 0);
   if (!attempts.length) {
     if (el.totalSpeeches) el.totalSpeeches.textContent = "0";
@@ -1560,17 +1744,6 @@ function renderProgress() {
   el.bestScore.textContent = best.toFixed(1);
   el.totalTime.textContent = `${Math.round(totalSeconds / 60)}m`;
   el.avgPace.textContent = avgPace !== "--" ? `${avgPace} WPM` : "--";
-}
-
-function calculateStreak(attempts) {
-  const days = new Set(attempts.map((item) => item.date.slice(0, 10)));
-  let streak = 0;
-  const cursor = new Date();
-  while (days.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
 }
 
 function renderTrends() {
@@ -1844,6 +2017,9 @@ function updateCoach(result) {
 function clearHistory() {
   state.history = [];
   localStorage.removeItem("speakup-history");
+  window.SpeakUpFirebase?.clearHistory().catch((error) => {
+    if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Cleared on this device. Cloud history clear failed: ${error.message}`;
+  });
   renderProgress();
   renderHistory();
 }
@@ -1927,10 +2103,14 @@ function abortFlow() {
 }
 
 function showPage(pageName) {
-  const aliases = { practice: "setup" };
+  const aliases = { practice: "setup", login: "auth", signup: "auth" };
   const requested = aliases[pageName] || pageName;
-  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewRoom", "results", "progress", "history"];
-  const safePage = known.includes(requested) ? requested : "setup";
+  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewRoom", "results", "progress", "history", "profile", "auth"];
+  let safePage = known.includes(requested) ? requested : "setup";
+  if (document.body.classList.contains("auth-gate") && safePage !== "auth") {
+    history.replaceState(null, "", "#auth");
+    safePage = "auth";
+  }
 
   if (!FLOW_PAGES.has(safePage)) abortFlow();
 
@@ -1954,12 +2134,13 @@ function showPage(pageName) {
     node.removeAttribute("open");
   });
 
-  const hashPage = FLOW_PAGES.has(safePage) ? "setup" : safePage;
+  const visiblePage = document.body.classList.contains("auth-gate") ? "auth" : safePage;
+  const hashPage = FLOW_PAGES.has(visiblePage) ? "setup" : visiblePage;
   if (location.hash !== `#${hashPage}`) {
     history.replaceState(null, "", `#${hashPage}`);
   }
 
-  if (safePage === "results" || safePage === "history" || safePage === "progress") {
+  if (safePage === "results" || safePage === "history" || safePage === "progress" || safePage === "profile" || safePage === "auth") {
     window.scrollTo(0, 0);
   }
 }
@@ -2000,6 +2181,227 @@ el.stopRecording.addEventListener("click", () => stopRecording(true));
 el.evaluate.addEventListener("click", evaluateCurrentSpeech);
 el.coachChallenge.addEventListener("click", focusedPrompt);
 el.clearHistory.addEventListener("click", clearHistory);
+el.googleSignIn?.addEventListener("click", async () => {
+  el.googleSignIn.disabled = true;
+  markLoginAttempt();
+  try {
+    if (!window.SpeakUpFirebase) throw new Error("Firebase did not load. Check your connection and local Firebase config.");
+    await window.SpeakUpFirebase.signIn();
+  }
+  catch (error) { cancelLoginAttempt(); if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Google sign-in failed: ${error.message}`; }
+  finally { el.googleSignIn.disabled = false; }
+});
+el.googleSignOut?.addEventListener("click", async () => {
+  try { localStorage.removeItem("speakup-guest-access-v1"); } catch { /* ignore unavailable storage */ }
+  try { await window.SpeakUpFirebase?.signOut(); }
+  catch (error) { if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Could not sign out: ${error.message}`; }
+});
+const GUEST_ACCESS_KEY = "speakup-guest-access-v1";
+const LAST_ACTIVE_KEY = "speakup-last-active-at-v1";
+const LOGIN_INTRO_IDLE_MS = 10 * 60 * 1000;
+let initialEntryResolved = false;
+let explicitLoginPending = false;
+let lastActivityWriteAt = 0;
+function markLoginAttempt() { explicitLoginPending = true; }
+function cancelLoginAttempt() { explicitLoginPending = false; }
+function recordWebsiteActivity() {
+  if (document.body.classList.contains("auth-check") || document.body.classList.contains("auth-gate") || document.body.classList.contains("splash-active")) return;
+  const now = Date.now();
+  if (now - lastActivityWriteAt < 30000) return;
+  lastActivityWriteAt = now;
+  try { localStorage.setItem(LAST_ACTIVE_KEY, String(now)); } catch { /* animation timing is optional */ }
+}
+function playLoginIntroIfDue() {
+  let lastActiveAt = 0;
+  try { lastActiveAt = Number(localStorage.getItem(LAST_ACTIVE_KEY)) || 0; } catch { /* animation timing is optional */ }
+  const showIntro = !lastActiveAt || Date.now() - lastActiveAt >= LOGIN_INTRO_IDLE_MS;
+  recordWebsiteActivity();
+  if (!showIntro) return;
+  const splash = document.getElementById("splashScreen");
+  if (!splash) return;
+  document.body.classList.add("splash-active");
+  splash.classList.add("is-visible");
+  initSplashScreen();
+}
+function enterWebsite(page = "setup", { recordActivity = true } = {}) {
+  initialEntryResolved = true;
+  document.body.classList.remove("auth-check", "auth-gate", "splash-active");
+  showPage(page);
+  if (recordActivity) recordWebsiteActivity();
+}
+function enterAuthGate() {
+  initialEntryResolved = true;
+  document.body.classList.remove("auth-check", "splash-active");
+  document.body.classList.add("auth-gate");
+  showPage("auth");
+}
+document.addEventListener("pointerdown", recordWebsiteActivity, { passive: true });
+document.addEventListener("keydown", recordWebsiteActivity);
+window.addEventListener("pagehide", recordWebsiteActivity);
+document.querySelector("#authGuestEntry")?.addEventListener("click", () => {
+  try { localStorage.setItem(GUEST_ACCESS_KEY, "true"); } catch { /* guest access still works for this visit */ }
+  enterWebsite("setup");
+});
+let authMode = "login";
+function setAuthMode(mode) {
+  authMode = mode === "signup" ? "signup" : "login";
+  const signup = authMode === "signup";
+  const loginTab = document.querySelector("#authLoginTab");
+  const signupTab = document.querySelector("#authSignupTab");
+  loginTab?.classList.toggle("is-active", !signup);
+  signupTab?.classList.toggle("is-active", signup);
+  loginTab?.setAttribute("aria-selected", String(!signup));
+  signupTab?.setAttribute("aria-selected", String(signup));
+  if (el.authName) { el.authName.hidden = !signup; el.authName.required = signup; }
+  if (el.authNameLabel) el.authNameLabel.hidden = !signup;
+  if (el.authPassword) el.authPassword.autocomplete = signup ? "new-password" : "current-password";
+  if (el.authTitle) el.authTitle.textContent = signup ? "Make room for your voice." : "Welcome back.";
+  if (el.authSubtitle) el.authSubtitle.textContent = signup ? "Create your free account. Your progress travels with you." : "Pick up right where your voice left off.";
+  if (el.authSubmit) el.authSubmit.innerHTML = `${signup ? "Create account" : "Log in"} <span aria-hidden="true">↗</span>`;
+  if (el.authFeedback) el.authFeedback.textContent = "";
+}
+document.querySelectorAll("[data-auth-mode]").forEach((button) => button.addEventListener("click", () => setAuthMode(button.dataset.authMode)));
+function authErrorMessage(error) {
+  const messages = {
+    "auth/email-already-in-use": "An account already uses this email. Try logging in instead.",
+    "auth/invalid-credential": "That email or password didn’t match. Check them and try again.",
+    "auth/user-not-found": "No account was found with that email. Sign up to get started.",
+    "auth/invalid-email": "That email address doesn’t look valid. Check it and try again.",
+    "auth/weak-password": "Choose a stronger password with at least 8 characters.",
+    "auth/operation-not-allowed": "This sign-in method isn’t enabled in Firebase yet."
+  };
+  return messages[error.code] || error.message || "We couldn’t complete that request. Try again.";
+}
+el.authForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!el.authFeedback || !el.authEmail || !el.authPassword) return;
+  if (!window.SpeakUpFirebase) { el.authFeedback.textContent = "Firebase didn’t load. Check your connection and local Firebase config."; return; }
+  const email = el.authEmail.value.trim();
+  const password = el.authPassword.value;
+  if (!el.authEmail.checkValidity() || !password || (authMode === "signup" && (!el.authName.value.trim() || password.length < 8))) {
+    el.authFeedback.textContent = authMode === "signup" && !el.authName.value.trim()
+      ? "Add your name to create your account."
+      : authMode === "signup" && password.length < 8
+        ? "Choose a password with at least 8 characters."
+        : "Enter a valid email and password.";
+    return;
+  }
+  el.authSubmit.disabled = true;
+  el.authFeedback.textContent = authMode === "signup" ? "Creating your account…" : "Logging you in…";
+  markLoginAttempt();
+  try {
+    if (authMode === "signup") await window.SpeakUpFirebase.createAccount(email, password, el.authName.value.trim());
+    else await window.SpeakUpFirebase.signInWithEmail(email, password);
+    el.authFeedback.textContent = "You’re in. Loading your SpeakUp space…";
+  } catch (error) {
+    cancelLoginAttempt();
+    el.authFeedback.textContent = authErrorMessage(error);
+  } finally {
+    el.authSubmit.disabled = false;
+  }
+});
+el.authGoogleSignIn?.addEventListener("click", async () => {
+  if (!window.SpeakUpFirebase) { if (el.authFeedback) el.authFeedback.textContent = "Firebase didn’t load. Check your connection and local Firebase config."; return; }
+  el.authGoogleSignIn.disabled = true;
+  if (el.authFeedback) el.authFeedback.textContent = "Opening Google sign-in…";
+  markLoginAttempt();
+  try { await window.SpeakUpFirebase.signIn(); }
+  catch (error) { cancelLoginAttempt(); if (el.authFeedback) el.authFeedback.textContent = authErrorMessage(error); }
+  finally { el.authGoogleSignIn.disabled = false; }
+});
+el.authForgotPassword?.addEventListener("click", async () => {
+  if (!window.SpeakUpFirebase) { if (el.authFeedback) el.authFeedback.textContent = "Firebase didn’t load. Check your connection and local Firebase config."; return; }
+  const email = el.authEmail?.value.trim();
+  if (!email || !el.authEmail.checkValidity()) { if (el.authFeedback) el.authFeedback.textContent = "Enter your email above and we’ll send a reset link."; el.authEmail?.focus(); return; }
+  try { await window.SpeakUpFirebase.resetPassword(email); if (el.authFeedback) el.authFeedback.textContent = "Password reset email sent. Check your inbox."; }
+  catch (error) { if (el.authFeedback) el.authFeedback.textContent = authErrorMessage(error); }
+});
+window.addEventListener("speakup:auth-state", (event) => {
+  const { user, profile, history, cloudError, isolateLocal, pending } = event.detail || {};
+  const explicitLogin = Boolean(user && explicitLoginPending);
+  if (user) explicitLoginPending = false;
+  let hasGuestAccess = false;
+  try { hasGuestAccess = localStorage.getItem(GUEST_ACCESS_KEY) === "true"; } catch { /* ignore unavailable storage */ }
+  if (!initialEntryResolved || document.body.classList.contains("auth-check")) {
+    if (user || hasGuestAccess) {
+      const requested = location.hash.replace(/^#/, "");
+      const initialPage = ["auth", "login", "signup"].includes(requested) ? "setup" : undefined;
+      enterWebsite(initialPage || undefined, { recordActivity: !explicitLogin });
+      if (!initialPage && requested && requested !== "setup") showPageFromHash();
+    } else {
+      enterAuthGate();
+    }
+  } else if (!user && !hasGuestAccess) {
+    enterAuthGate();
+  } else if (user && document.body.classList.contains("auth-gate")) {
+    enterWebsite("setup", { recordActivity: !explicitLogin });
+  }
+  if (explicitLogin) playLoginIntroIfDue();
+  if (el.googleSignIn) el.googleSignIn.hidden = Boolean(user);
+  if (el.googleSignOut) el.googleSignOut.hidden = !user;
+  if (el.accountStatus) {
+    el.accountStatus.textContent = user ? `Signed in as ${user.displayName || user.email || "Google user"}` : "Saved on this device";
+  }
+  if (pending) return;
+  if (user && isolateLocal) {
+    state.profile = { ...PROFILE_DEFAULTS, mascot: { ...MASCOT_DEFAULTS }, ...(profile || {}) };
+    state.history = Array.isArray(history) ? history : [];
+  } else if (user && Array.isArray(history)) {
+    const merged = new Map();
+    [...history, ...state.history].forEach((item) => {
+      if (item?.id) merged.set(String(item.id), item);
+    });
+    state.history = [...merged.values()]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 25);
+  }
+  if (user && profile) {
+    state.profile = { ...state.profile, ...profile, mascot: { ...MASCOT_DEFAULTS, ...(profile.mascot || {}) } };
+  }
+  if (user && !cloudError) {
+    if (!profile && !state.profile.name && user.displayName) state.profile.name = user.displayName.slice(0, 32);
+    try {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(state.profile));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history));
+    } catch { /* Keep the signed-in account data available in memory. */ }
+    if (!profile) saveProfile();
+    window.SpeakUpFirebase?.syncHistory(state.history).catch((error) => {
+      if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Profile loaded, but history sync failed: ${error.message}`;
+    });
+    renderProfile();
+    renderProgress();
+    renderHistory();
+    if (el.profileSaveStatus) el.profileSaveStatus.textContent = "Profile, coach style, and practice history are synced to your Google account.";
+    if (location.hash === "#auth" || location.hash === "#login" || location.hash === "#signup") showPage("setup");
+  } else if (user && cloudError) {
+    if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Google sign-in is active, but cloud profile sync failed. Enable Firestore and add its rules. ${cloudError}`;
+  }
+});
+window.addEventListener("speakup:firebase-load-error", (event) => {
+  const error = event.detail?.error;
+  enterAuthGate();
+  if (el.authFeedback) {
+    const reason = error?.code || error?.message || "Unknown module-loading error";
+    el.authFeedback.textContent = `Firebase initialization failed: ${reason}`;
+  }
+});
+el.mascotCustomizer?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-value]");
+  const group = button?.closest("[data-option]");
+  if (!button || !group) return;
+  state.profile.mascot[group.dataset.option] = button.dataset.value;
+  saveProfile();
+  renderProfile();
+});
+el.profileForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  state.profile.name = el.profileName.value.trim().slice(0, 32);
+  state.profile.handle = el.profileHandleInput.value.trim().replace(/^@/, "").replace(/[^a-z0-9_]/gi, "").slice(0, 20).toLowerCase();
+  state.profile.weeklyGoal = Math.min(7, Math.max(1, Number(el.weeklyGoal.value) || 3));
+  const saved = saveProfile();
+  if (saved && el.profileSaveStatus) el.profileSaveStatus.textContent = "Saved on this device. Your next session counts toward your goal.";
+  renderProfile();
+});
 el.customSeconds.addEventListener("change", syncStartButton);
 el.customComplexity.addEventListener("change", syncStartButton);
 el.themeToggle.addEventListener("click", toggleTheme);
@@ -2011,10 +2413,17 @@ el.viewHistory.addEventListener("click", () => showPage("history"));
 window.addEventListener("hashchange", showPageFromHash);
 
 applyTheme(getPreferredTheme());
-initSplashScreen();
+document.body.classList.remove("splash-active");
+setTimeout(() => {
+  if (!initialEntryResolved) {
+    enterAuthGate();
+    if (!window.SpeakUpFirebase && el.authFeedback) {
+      el.authFeedback.textContent = "Firebase didn’t load. You can continue as a guest or check your connection and local Firebase config.";
+    }
+  }
+}, 4000);
 loadReportLogo();
 syncStartButton();
-showPageFromHash();
 renderProgress();
 renderHistory();
 try {
@@ -2025,24 +2434,33 @@ function initSplashScreen() {
   const splash = document.getElementById("splashScreen");
   if (!splash) return;
 
+  splash.classList.add("is-visible");
+  splash.classList.remove("exit");
   const motionReduced = reducedMotion();
   const startedAt = performance.now();
   const minHold = motionReduced ? 120 : 5400;
   let exited = false;
+  const skipButton = document.getElementById("splashSkip");
+  const onSkip = () => exitSplash();
+  const onKeydown = (event) => { if (event.key === "Escape") exitSplash(); };
 
   const exitSplash = () => {
     if (exited) return;
     exited = true;
+    skipButton?.removeEventListener("click", onSkip);
+    document.removeEventListener("keydown", onKeydown);
     document.body.classList.remove("splash-active");
     splash.classList.add("exit");
-    const removeSplash = () => splash.remove();
-    const removeOnExit = (event) => {
-      if (event.target !== splash) return;
-      splash.removeEventListener("animationend", removeOnExit);
-      removeSplash();
+    const hideSplash = () => {
+      splash.classList.remove("exit", "is-visible");
     };
-    splash.addEventListener("animationend", removeOnExit);
-    setTimeout(removeSplash, 1300);
+    const hideOnExit = (event) => {
+      if (event.target !== splash) return;
+      splash.removeEventListener("animationend", hideOnExit);
+      hideSplash();
+    };
+    splash.addEventListener("animationend", hideOnExit);
+    setTimeout(hideSplash, 1200);
   };
 
   const scheduleExit = () => {
@@ -2056,10 +2474,8 @@ function initSplashScreen() {
     window.addEventListener("load", scheduleExit);
   }
 
-  document.getElementById("splashSkip")?.addEventListener("click", exitSplash);
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") exitSplash();
-  });
+  skipButton?.addEventListener("click", onSkip);
+  document.addEventListener("keydown", onKeydown);
 
   setTimeout(() => {
     if (!exited) exitSplash();
