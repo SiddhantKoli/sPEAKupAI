@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut as firebaseSignOut, updateProfile } from "firebase/auth";
 import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseConfig } from "./firebase-config.local.js";
+import { normalizeCoachConfig } from "./coach/state.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -22,13 +23,7 @@ async function saveProfile(profile) {
     name: String(profile.name || "").slice(0, 32),
     handle: String(profile.handle || "").slice(0, 20),
     weeklyGoal: Math.min(7, Math.max(1, Number(profile.weeklyGoal) || 3)),
-    mascot: {
-      character: profile.mascot?.character === "grandpa" ? "grandpa" : "grandma",
-      hair: profile.mascot?.hair || "#c7d0dc",
-      glasses: profile.mascot?.glasses || "square",
-      shirt: profile.mascot?.shirt || "#71345f",
-      accessory: profile.mascot?.accessory || "scarf"
-    },
+    mascot: normalizeCoachConfig(profile.mascot || {}),
     updatedAt: serverTimestamp()
   };
   await setDoc(profileRef(activeUser.uid), syncedProfile, { merge: true });

@@ -5,16 +5,19 @@
   "description": "AI impromptu speaking coach — think fast, speak better.",
   "main": "server.js",
   "scripts": {
-    "build": "esbuild firebase-auth.js --bundle --format=iife --target=es2020 --outfile=firebase-auth.bundle.js",
+    "build": "esbuild firebase-auth.js --bundle --format=iife --target=es2020 --outfile=firebase-auth.bundle.js && esbuild coach/ui.js --bundle --format=iife --target=es2020 --outfile=coach/coach.bundle.js",
     "start": "npm run build && node server.js",
     "dev": "npm run build && node server.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@dicebear/core": "^10.7.0",
+    "@dicebear/styles": "^10.6.0",
     "esbuild": "^0.28.2",
-    "firebase": "^12.19.0"
+    "firebase": "^12.19.0",
+    "lucide": "^1.60.0"
   }
 }

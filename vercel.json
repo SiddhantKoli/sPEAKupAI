@@ -28,6 +28,46 @@
     {
       "src": "speakup-logo-on-light.svg",
       "use": "@vercel/static"
+    },
+    {
+      "src": "mode-shift.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/mode-shift/casual.webp",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/mode-shift/interview.webp",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/ui.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/coach.bundle.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/catalog.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/render.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/state.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/export.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "coach/coach.css",
+      "use": "@vercel/static"
     }
   ],
   "routes": [

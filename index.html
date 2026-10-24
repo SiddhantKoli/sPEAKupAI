@@ -21,7 +21,8 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=login-intro-20261020">
+    <link rel="stylesheet" href="./styles.css?v=player-avatar-20261020">
+    <link rel="stylesheet" href="./coach/coach.css?v=player-avatar-20261020">
     <noscript>
       <style>
         #splashScreen { display: none !important; }
@@ -32,57 +33,30 @@
   <body class="auth-check">
     <div id="chargeVeil" class="charge-veil" aria-hidden="true"></div>
     <div id="modeShift" class="mode-shift" aria-hidden="true">
-      <div class="ms-bg"></div>
+      <div class="ms-bg">
+        <div class="ms-back ms-back-cas" aria-hidden="true">
+          <div class="ms-burst"></div>
+          <div class="ms-word ms-word-a">SPEAK UP ✦ SPEAK UP ✦ SPEAK UP ✦ SPEAK UP ✦ SPEAK UP ✦</div>
+          <div class="ms-word ms-word-b">PRACTICE ✦ PRACTICE ✦ PRACTICE ✦ PRACTICE ✦ PRACTICE ✦</div>
+        </div>
+        <div class="ms-back ms-back-int" aria-hidden="true">
+          <div class="ms-burst"></div>
+          <div class="ms-word ms-word-a">INTERVIEW ✦ INTERVIEW ✦ INTERVIEW ✦ INTERVIEW ✦ INTERVIEW ✦</div>
+          <div class="ms-word ms-word-b">LET’S GO ✦ LET’S GO ✦ LET’S GO ✦ LET’S GO ✦ LET’S GO ✦</div>
+        </div>
+      </div>
       <div class="ms-stage">
-        <svg class="ms-face" viewBox="0 0 600 560" focusable="false">
-          <clipPath id="msLens"><rect x="168" y="238" width="112" height="84" rx="26"/><rect x="320" y="238" width="112" height="84" rx="26"/></clipPath>
-          <g class="ms-person">
-            <path class="ms-body" d="M95 560V478a205 205 0 0 1 410 0V560Z" stroke-linejoin="round"/>
-            <g class="ms-casual">
-              <path class="ms-cardigan" d="M124 428Q148 378 198 366L246 399L300 468L354 399L402 366Q452 378 476 428L505 478V560H95V478Z" fill="#168c91" stroke="var(--ink)" stroke-width="7" stroke-linejoin="round"/>
-              <path class="ms-cardigan-trim" d="M124 428Q148 378 198 366L246 399L300 468L354 399L402 366Q452 378 476 428M95 535H505" fill="none" stroke="#ffe36b" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M169 402Q185 407 200 419M431 402Q415 407 400 419" fill="none" stroke="#f5bfd5" stroke-width="6" stroke-linecap="round"/>
-              <path class="ms-casual-collar" d="M232 410L300 500L368 410L340 392L300 436L260 392Z" fill="#fff4d6" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/>
-              <path d="M278 461L300 477L322 461L315 520L300 533L285 520Z" fill="#e62e50" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
-              <path d="M290 480L300 488L310 480M288 498L300 506L312 498" fill="none" stroke="#ffe600" stroke-width="4" stroke-linecap="round"/>
-              <circle cx="300" cy="518" r="5" fill="#ffe600"/>
-            </g>
-            <g class="ms-suit">
-              <path class="ms-blouse" d="M232 410L300 500L368 410L340 392L300 436L260 392Z" fill="#fff" stroke="var(--ink)" stroke-width="6" stroke-linejoin="round"/>
-              <path class="ms-lapel-fill" d="M232 410L200 560H259L286 470L260 392ZM368 410L400 560H341L314 470L340 392Z" fill="#a94c80" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
-              <path class="ms-lapel" d="M232 410L200 560M260 392L286 470L300 500M368 410L400 560M340 392L314 470L300 500" stroke="var(--ink)" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              <path class="ms-tie" d="M286 470H314L326 548L300 560L274 548Z" fill="#0e8f91" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
-              <path d="M293 481L300 488L307 481M290 503L300 510L310 503M286 526L300 535L314 526" fill="none" stroke="#ffe600" stroke-width="4" stroke-linecap="round"/>
-              <circle class="ms-brooch" cx="365" cy="500" r="17" fill="#ffe600" stroke="var(--ink)" stroke-width="5"/>
-              <path d="M365 489L368 497L377 498L370 504L372 513L365 508L358 513L360 504L353 498L362 497Z" fill="#e62e50" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
-              <path class="ms-seam" d="M132 477Q175 463 218 477M468 477Q425 463 382 477" fill="none" stroke="#e4a4c5" stroke-width="5" stroke-linecap="round"/>
-              <circle class="ms-button" cx="235" cy="510" r="7"/><circle class="ms-button" cx="225" cy="538" r="7"/>
-            </g>
-            <circle cx="152" cy="285" r="26" fill="#fffefd" stroke="var(--ink)" stroke-width="8"/>
-            <circle cx="448" cy="285" r="26" fill="#fffefd" stroke="var(--ink)" stroke-width="8"/>
-            <circle cx="300" cy="270" r="150" fill="#fffefd" stroke="var(--ink)" stroke-width="8"/>
-            <g class="ms-hair" fill="#c7d0dc" stroke="var(--ink)" stroke-width="7" stroke-linejoin="round">
-              <circle cx="160" cy="189" r="39"/><circle cx="440" cy="189" r="39"/>
-              <path d="M152 255C146 150 226 108 300 108s154 42 148 147c-34-52-84-74-148-74s-114 22-148 74Z"/>
-            </g>
-            <g class="ms-earrings" fill="#ffe600" stroke="var(--ink)" stroke-width="5"><circle cx="151" cy="319" r="8"/><circle cx="449" cy="319" r="8"/></g>
-            <path class="ms-hairline" d="M229 155Q300 125 371 155" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
-            <line class="ms-brow l" x1="205" y1="238" x2="270" y2="238"/><line class="ms-brow r" x1="330" y1="238" x2="395" y2="238"/>
-            <g class="ms-wrinkles" fill="none" stroke="#8793a3" stroke-width="4" stroke-linecap="round"><path d="M178 224q18-10 34 0M388 224q18-10 34 0M190 337q12 8 24 0M386 337q12 8 24 0"/></g>
-            <circle class="ms-eye" cx="240" cy="285" r="14"/><circle class="ms-eye" cx="360" cy="285" r="14"/>
-            <path class="ms-m ms-m-smile" d="M238 342Q300 410 362 342"/>
-            <ellipse class="ms-m-talk" cx="300" cy="362" rx="32" ry="20"/>
-            <path class="ms-m ms-m-flat" d="M252 364H348"/>
-            <g class="ms-glasses">
-              <rect class="ms-lens" x="168" y="238" width="112" height="84" rx="26"/><rect class="ms-lens" x="320" y="238" width="112" height="84" rx="26"/>
-              <path class="ms-frame" d="M280 268Q300 254 320 268M168 262L140 252M432 262L460 252"/>
-              <g clip-path="url(#msLens)"><g class="ms-glint"><rect x="120" y="220" width="40" height="130" fill="#fff" opacity=".9" transform="skewX(-20)"/></g></g>
-            </g>
-          </g>
-        </svg>
+        <div class="ms-face">
+          <svg class="ms-fxsvg" viewBox="0 0 959 994" focusable="false" aria-hidden="true"><g class="ms-fxback"></g><g class="ms-fx"></g></svg>
+          <div class="ms-person">
+            <img class="ms-img ms-img-cas" src="./assets/mode-shift/casual.webp" alt="" draggable="false">
+            <img class="ms-img ms-img-int" src="./assets/mode-shift/interview.webp" alt="" draggable="false">
+          </div>
+        </div>
         <div class="ms-caps"><p class="ms-cap ms-cap-a" id="msCapA"></p><p class="ms-cap ms-cap-b" id="msCapB"></p></div>
       </div>
       <div class="ms-wipe"></div>
+      <div class="ms-wipe2"></div>
     </div>
 
     <div id="splashScreen" class="splash-screen" role="presentation">
@@ -145,7 +119,7 @@
           <span class="theme-toggle-icon" aria-hidden="true">◐</span>
           <span class="theme-toggle-label">Dark</span>
         </button>
-        <a class="profile-nav-link" href="#profile" data-page-link="profile" aria-label="Open your profile and mascot wardrobe" title="Your profile and mascot wardrobe">
+        <a class="profile-nav-link" href="#profile" data-page-link="profile" aria-label="Open your player profile and avatar wardrobe" title="Your player profile and avatar wardrobe">
           <span class="profile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20v-1.2a6.5 6.5 0 0 1 13 0V20z"/></svg></span><span>Profile</span>
         </a>
         <details class="menu-more">
@@ -527,35 +501,40 @@
 
       <section class="screen page-screen profile-page" id="profile" data-page="profile" aria-labelledby="profileTitle">
         <header class="profile-page-heading">
-          <div><p class="kicker">Your SpeakUp space</p><h1 id="profileTitle">Build your corner</h1><p>Set a goal, dress your coach, and keep your progress moving.</p></div>
+          <div><p class="kicker">Your SpeakUp space</p><h1 id="profileTitle">Build your corner</h1><p>Set a goal, customize your player avatar, and keep your progress moving.</p></div>
           <div class="profile-account-actions"><span class="local-profile-badge" id="accountStatus"><span aria-hidden="true">●</span> Saved on this device</span><button class="button google-sign-in" id="googleSignIn" type="button"><span aria-hidden="true">G</span> Continue with Google</button><button class="button secondary google-sign-out" id="googleSignOut" type="button" hidden>Sign out</button></div>
         </header>
 
-        <div class="profile-layout">
-          <section class="profile-card profile-identity" aria-labelledby="identityTitle">
-            <div class="profile-mascot-wrap">
-              <div class="profile-mascot" id="profileMascot" data-character="grandma" role="img" aria-label="Your grandma speaking coach">
-                <svg viewBox="0 0 240 250" aria-hidden="true">
-                  <path class="profile-coat" d="M23 240v-44q3-53 52-68h90q49 15 52 68v44z"/>
-                  <path class="profile-blouse" d="m84 126 36 50 36-50-14-12h-44z"/>
-                  <path class="profile-scarf" d="m103 157 17 12 17-12-7 54-10 10-10-10z"/>
-                  <path class="profile-trim" d="m87 129 33 48 33-48M120 175v57"/>
-                  <circle class="profile-button" cx="120" cy="200" r="5"/><circle class="profile-button" cx="120" cy="220" r="5"/>
-                  <circle cx="120" cy="95" r="67" class="profile-face"/>
-                  <circle cx="57" cy="91" r="17" class="profile-hair"/><circle cx="183" cy="91" r="17" class="profile-hair"/>
-                  <path class="profile-hair" d="M53 94q-3-70 67-70t67 70q-18-35-67-36T53 94Z"/>
-                  <path class="profile-hair profile-grandpa-hair" d="M57 83q1-55 63-59 62 4 63 59-13-18-26-19l-4-15q-24 17-56 16-22-1-40 18Z"/>
-                  <path d="M71 88h39q9 0 9 9v18q0 9-9 9H76q-9 0-9-9V97q0-9 4-9Zm59 0h39q4 0 4 9v18q0 9-9 9h-16q-9 0-9-9V97q0-9 9-9Zm-29 9q9-8 19 0" class="profile-glasses profile-square-glasses"/>
-                  <path d="M71 103q0-15 15-15h18q15 0 15 15t-15 15H86q-15 0-15-15Zm68 0q0-15 15-15h2q15 0 15 15t-15 15h-2q-15 0-15-15Zm-20 0q10-8 20 0" class="profile-glasses profile-round-glasses"/>
-                  <circle cx="90" cy="104" r="4" class="profile-eye"/><circle cx="150" cy="104" r="4" class="profile-eye"/>
-                  <path class="profile-moustache" d="M119 124q-9-11-21-3 6 13 21 7 15 6 21-7-12-8-21 3z"/>
-                  <path d="M101 135q19 13 38 0" class="profile-smile"/>
-                  <circle cx="55" cy="117" r="5" class="profile-earring"/><circle cx="185" cy="117" r="5" class="profile-earring"/>
-                  <path class="profile-brooch" d="m182 171 4 10 11 1-8 7 2 11-9-6-9 6 2-11-8-7 11-1z"/>
-                </svg>
+          <section class="coach-builder profile-card" id="mascotCustomizer" aria-labelledby="wardrobeTitle">
+            <header class="coach-studio-header">
+              <div><p class="coach-eyebrow">Player avatar</p><h2 id="wardrobeTitle">Make your avatar yours</h2><p>Build a fresh look that feels like you.</p></div>
+              <div class="coach-save-indicator"><span aria-hidden="true"></span> Saves as you go</div>
+            </header>
+            <div class="coach-studio-body">
+              <aside class="coach-preview-column" aria-label="Player avatar preview and actions">
+                <div class="coach-preview-slab">
+                  <div class="coach-preview-topline"><span><i aria-hidden="true"></i> Live preview</span><span id="coachLookCount">0 extras</span></div>
+                  <div class="coach-avatar-stage"><div class="profile-mascot" id="profileMascot" role="img" aria-label="Your young woman player avatar"></div></div>
+                  <div class="profile-mascot-caption"><strong id="mascotName">Your player avatar</strong><span id="coachLookSummary">A look all your own</span></div>
+                </div>
+                <div class="coach-preview-actions" aria-label="Avatar actions">
+                  <button class="coach-action coach-action-primary" type="button" data-action="randomize"><i data-lucide="shuffle" aria-hidden="true"></i><span>Randomize</span></button>
+                  <button class="coach-action" type="button" data-action="reset"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reset</span></button>
+                  <button class="coach-action coach-action-icon" type="button" data-action="undo" disabled aria-label="Undo avatar change" title="Undo"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+                  <button class="coach-action coach-action-icon" type="button" data-action="redo" disabled aria-label="Redo avatar change" title="Redo"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+                  <button class="coach-action" type="button" data-action="download-png"><i data-lucide="download" aria-hidden="true"></i><span>PNG</span></button>
+                  <button class="coach-action" type="button" data-action="download-svg"><i data-lucide="download" aria-hidden="true"></i><span>SVG</span></button>
+                </div>
+              </aside>
+              <div class="coach-workbench">
+                <nav class="coach-tabs" id="coachTabs" role="tablist" aria-label="Avatar categories"></nav>
+                <div class="coach-picker-panel"></div>
               </div>
-              <div class="profile-mascot-caption"><strong id="mascotName">Your grandma coach</strong><span>Make a look that feels like you.</span></div>
             </div>
+          </section>
+
+          <section class="profile-layout">
+          <section class="profile-card profile-identity" aria-labelledby="profileDisplayName">
             <div class="profile-summary"><p class="kicker">Your profile</p><h2 id="profileDisplayName">Your name goes here</h2><p id="profileHandle">Set up your local profile</p></div>
             <form class="profile-form" id="profileForm">
               <label for="profileName">Display name</label>
@@ -564,23 +543,11 @@
               <input id="profileHandleInput" name="handle" maxlength="20" autocomplete="username" placeholder="e.g. speakwithsam">
               <div class="profile-form-row"><label for="weeklyGoal">Weekly practice goal</label><select id="weeklyGoal" name="weeklyGoal"><option value="1">1 session a week</option><option value="2">2 sessions a week</option><option value="3">3 sessions a week</option><option value="4">4 sessions a week</option><option value="5">5 sessions a week</option><option value="6">6 sessions a week</option><option value="7">7 sessions a week</option></select></div>
               <button class="button primary" type="submit">Save my profile</button>
-              <p class="profile-save-status" id="profileSaveStatus" role="status">Your profile and coach style are saved on this device. Google sign-in and cloud sync need an account service.</p>
+              <p class="profile-save-status" id="profileSaveStatus" role="status">Your profile and avatar are saved on this device. Google sign-in and cloud sync need an account service.</p>
             </form>
           </section>
 
           <div class="profile-main-column">
-            <section class="profile-card wardrobe-card" aria-labelledby="wardrobeTitle">
-              <div class="section-heading"><div><p class="kicker">Build your coach</p><h2 id="wardrobeTitle">Make it yours</h2></div></div>
-              <p class="wardrobe-intro">Choose each detail separately. Mix any combination you like.</p>
-              <div class="mascot-customizer" id="mascotCustomizer" aria-label="Mascot appearance controls">
-                <fieldset class="customizer-group"><legend>Choose your coach</legend><div class="choice-row" data-option="character"><button type="button" data-value="grandma">Grandma</button><button type="button" data-value="grandpa">Grandpa</button></div></fieldset>
-                <fieldset class="customizer-group"><legend>Hair color</legend><div class="swatch-row" data-option="hair"><button type="button" data-value="#c7d0dc" style="--swatch:#c7d0dc" aria-label="Silver hair"></button><button type="button" data-value="#5a4035" style="--swatch:#5a4035" aria-label="Brown hair"></button><button type="button" data-value="#b85c3c" style="--swatch:#b85c3c" aria-label="Auburn hair"></button><button type="button" data-value="#222b3a" style="--swatch:#222b3a" aria-label="Charcoal hair"></button></div></fieldset>
-                <fieldset class="customizer-group"><legend>Glasses</legend><div class="choice-row" data-option="glasses"><button type="button" data-value="round">Round</button><button type="button" data-value="square">Square</button><button type="button" data-value="none">No glasses</button></div></fieldset>
-                <fieldset class="customizer-group"><legend>Jacket color</legend><div class="swatch-row" data-option="shirt"><button type="button" data-value="#71345f" style="--swatch:#71345f" aria-label="Plum jacket"></button><button type="button" data-value="#168c91" style="--swatch:#168c91" aria-label="Teal jacket"></button><button type="button" data-value="#e6a72e" style="--swatch:#e6a72e" aria-label="Gold jacket"></button><button type="button" data-value="#173d73" style="--swatch:#173d73" aria-label="Blue jacket"></button><button type="button" data-value="#dc2c4f" style="--swatch:#dc2c4f" aria-label="Red jacket"></button></div></fieldset>
-                <fieldset class="customizer-group"><legend>Accessory</legend><div class="choice-row" data-option="accessory"><button type="button" data-value="scarf">Scarf</button><button type="button" data-value="tie">Tie</button><button type="button" data-value="none">None</button></div></fieldset>
-              </div>
-            </section>
-
             <section class="profile-card goal-card" aria-labelledby="goalTitle">
               <div class="goal-card-top"><div><p class="kicker">Your weekly target</p><h2 id="goalTitle">Small reps. Big voice.</h2></div><div class="goal-score"><strong id="weeklyGoalCount">0</strong><span id="weeklyGoalTarget">of 3 sessions</span></div></div>
               <div class="goal-track" role="progressbar" id="weeklyGoalProgress" aria-label="Weekly practice goal" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><span id="weeklyGoalFill"></span></div>
@@ -594,7 +561,7 @@
               <div class="streak-best"><span>Personal best</span><strong id="bestStreak">0 days</strong></div>
             </section>
           </div>
-        </div>
+          </section>
       </section>
     </main>
 
@@ -604,7 +571,9 @@
 
     <div id="printSheet" aria-hidden="true"></div>
 
-    <script src="./app.js?v=login-intro-20261020"></script>
+    <script src="./mode-shift.js?v=mode-story-20261024"></script>
+    <script src="./app.js?v=player-avatar-20261020"></script>
     <script src="./firebase-auth.bundle.js?v=firebase-standalone-20261020" onerror="window.dispatchEvent(new CustomEvent('speakup:firebase-load-error', { detail: { error: new Error('The local Firebase script could not be loaded.') } }))"></script>
+    <script src="./coach/coach.bundle.js?v=player-avatar-20261020" defer></script>
   </body>
 </html>

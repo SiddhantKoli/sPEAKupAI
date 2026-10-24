@@ -265,7 +265,14 @@ const INTERVIEW_DRAFT_KEY = "speakup-interview-draft";
 const PROFILE_STORAGE_KEY = "speakup-profile-v1";
 const PROFILE_DEFAULTS = {
   name: "", handle: "", weeklyGoal: 3,
-  mascot: { character: "grandma", hair: "#c7d0dc", glasses: "square", shirt: "#71345f", accessory: "scarf" }
+  mascot: {
+    version: 3, base: "woman", character: "woman", skin: "#edb98a",
+    hair: { style: "longButNotTooLong", color: "#5a4035" }, hairColor: "#5a4035",
+    glasses: { style: "square", color: "#141b2b" },
+    top: { style: "blazerAndShirt", color: "#0058be", pattern: "solid" }, shirt: "#0058be",
+    neck: { style: "scarf", color: "#168c91" }, accessory: "scarf",
+    hat: { style: "none", color: "#0058be" }, accessories: []
+  }
 };
 const MASCOT_DEFAULTS = PROFILE_DEFAULTS.mascot;
 const PREP_SECONDS = 10;
@@ -1597,6 +1604,7 @@ function loadProfile() {
 
 function saveProfile() {
   try {
+    if (window.SpeakUpCoach) state.profile.mascot = window.SpeakUpCoach.getConfig();
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(state.profile));
     window.SpeakUpFirebase?.saveProfile(state.profile).catch((error) => {
       if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Saved on this device. Cloud save failed: ${error.message}`;
@@ -1668,22 +1676,14 @@ function renderProfile() {
   if (el.profileDisplayName) el.profileDisplayName.textContent = profile.name || "The next big voice";
   if (el.profileHandle) el.profileHandle.textContent = profile.handle ? `@${profile.handle}` : "A profile that stays on this device";
   const mascot = profile.mascot;
+  mascot.base = mascot.base === "grandpa" || mascot.base === "man" || mascot.character === "grandpa" || mascot.character === "man" ? "man" : mascot.base === "grandma" || !mascot.base ? "woman" : mascot.base;
+  mascot.character = mascot.base;
   if (el.profileMascot) {
-    el.profileMascot.dataset.character = mascot.character;
-    el.profileMascot.dataset.glasses = mascot.glasses;
-    el.profileMascot.dataset.accessory = mascot.accessory;
-    el.profileMascot.style.setProperty("--hair-color", mascot.hair);
-    el.profileMascot.style.setProperty("--shirt-color", mascot.shirt);
-    el.profileMascot.setAttribute("aria-label", `Your ${mascot.character} speaking coach`);
+    window.SpeakUpCoach?.setConfig(mascot);
+    const base = mascot.base === "man" ? "young man" : "young woman";
+    el.profileMascot.setAttribute("aria-label", `Your ${base} player avatar`);
   }
-  if (el.mascotName) el.mascotName.textContent = `Your ${mascot.character} coach`;
-  el.mascotCustomizer?.querySelectorAll("[data-option]").forEach((group) => {
-    group.querySelectorAll("button[data-value]").forEach((button) => {
-      const selected = mascot[group.dataset.option] === button.dataset.value;
-      button.setAttribute("aria-pressed", String(selected));
-      button.classList.toggle("is-selected", selected);
-    });
-  });
+  if (el.mascotName) el.mascotName.textContent = `Your ${mascot.base === "man" ? "young man" : "young woman"} avatar`;
 
   const dayKeys = attemptDayKeys();
   const streak = streakStats(dayKeys);
@@ -2237,7 +2237,6 @@ function enterAuthGate() {
 }
 document.addEventListener("pointerdown", recordWebsiteActivity, { passive: true });
 document.addEventListener("keydown", recordWebsiteActivity);
-window.addEventListener("pagehide", recordWebsiteActivity);
 document.querySelector("#authGuestEntry")?.addEventListener("click", () => {
   try { localStorage.setItem(GUEST_ACCESS_KEY, "true"); } catch { /* guest access still works for this visit */ }
   enterWebsite("setup");
@@ -2326,8 +2325,11 @@ window.addEventListener("speakup:auth-state", (event) => {
     if (user || hasGuestAccess) {
       const requested = location.hash.replace(/^#/, "");
       const initialPage = ["auth", "login", "signup"].includes(requested) ? "setup" : undefined;
-      enterWebsite(initialPage || undefined, { recordActivity: !explicitLogin });
+      // A restored Firebase session is a return visit too. Check its idle time
+      // before recording activity so a stale session can show the intro once.
+      enterWebsite(initialPage || undefined, { recordActivity: !user && !explicitLogin });
       if (!initialPage && requested && requested !== "setup") showPageFromHash();
+      if (user) playLoginIntroIfDue();
     } else {
       enterAuthGate();
     }
@@ -2371,7 +2373,7 @@ window.addEventListener("speakup:auth-state", (event) => {
     renderProfile();
     renderProgress();
     renderHistory();
-    if (el.profileSaveStatus) el.profileSaveStatus.textContent = "Profile, coach style, and practice history are synced to your Google account.";
+    if (el.profileSaveStatus) el.profileSaveStatus.textContent = "Profile, avatar, and practice history are synced to your Google account.";
     if (location.hash === "#auth" || location.hash === "#login" || location.hash === "#signup") showPage("setup");
   } else if (user && cloudError) {
     if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Google sign-in is active, but cloud profile sync failed. Enable Firestore and add its rules. ${cloudError}`;
@@ -2385,11 +2387,9 @@ window.addEventListener("speakup:firebase-load-error", (event) => {
     el.authFeedback.textContent = `Firebase initialization failed: ${reason}`;
   }
 });
-el.mascotCustomizer?.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-value]");
-  const group = button?.closest("[data-option]");
-  if (!button || !group) return;
-  state.profile.mascot[group.dataset.option] = button.dataset.value;
+window.addEventListener("speakup:coach-change", (event) => {
+  if (!event.detail?.config) return;
+  state.profile.mascot = event.detail.config;
   saveProfile();
   renderProfile();
 });
@@ -2493,13 +2493,12 @@ function initSplashScreen() {
   const capA = document.getElementById("msCapA");
   const capB = document.getElementById("msCapB");
   const HOLD_MS = 700;
-  const TIMING = { "to-int": { swap: 4250, end: 5200 }, "to-cas": { swap: 2750, end: 3600 } };
   let holdTimer = null;
   let startedAt = 0;
   let charging = false;
   let shifting = false;
-  let swapTimer = null;
-  let endTimer = null;
+  let raf = 0;
+  let timeline = null;
   let direction = "";
   let prevMode = "";
 
@@ -2555,6 +2554,15 @@ function initSplashScreen() {
     setTimeout(() => root.classList.remove("side-in"), 1600);
   }
 
+  function stopTimeline() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    if (timeline) {
+      timeline.dispose();
+      timeline = null;
+    }
+  }
+
   function swap() {
     if (overlay.classList.contains("swapped")) return;
     overlay.classList.add("swapped");
@@ -2562,8 +2570,7 @@ function initSplashScreen() {
   }
 
   function endShift() {
-    clearTimeout(swapTimer);
-    clearTimeout(endTimer);
+    stopTimeline();
     overlay.className = "mode-shift";
     document.body.classList.remove("shifting");
     shifting = false;
@@ -2596,11 +2603,43 @@ function initSplashScreen() {
     void overlay.offsetWidth;
     overlay.className = `mode-shift run ${dir}`;
 
-    const timing = reducedMotion()
-      ? { "to-int": { swap: 60, end: 120 }, "to-cas": { swap: 60, end: 120 } }
-      : TIMING;
-    swapTimer = setTimeout(swap, timing[dir].swap);
-    endTimer = setTimeout(endShift, timing[dir].end);
+    if (reducedMotion() || typeof window.buildShiftTimeline !== "function") {
+      swap();
+      setTimeout(endShift, 80);
+      return;
+    }
+
+    try {
+      timeline = window.buildShiftTimeline(overlay, dir, {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      });
+      timeline.evaluate(0);
+    } catch (error) {
+      stopTimeline();
+      swap();
+      setTimeout(endShift, 80);
+      return;
+    }
+
+    let firstFrame = null;
+    let swapped = false;
+    const step = (now) => {
+      if (!timeline) return;
+      if (firstFrame === null) firstFrame = now;
+      const t = Math.max(0, (now - firstFrame) / 1000);
+      timeline.evaluate(t);
+      if (!swapped && t >= timeline.swapAt) {
+        swapped = true;
+        swap();
+      }
+      if (t >= timeline.endAt) {
+        endShift();
+        return;
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
   }
 
   btn.addEventListener("pointerdown", (event) => {
