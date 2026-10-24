@@ -2868,6 +2868,7 @@ async function generateInterviewOpening() {
     if (!question) throw new Error("The interviewer returned an invalid first question. Please retry.");
     interview.resumeSummary = String(result.resume_summary || "").slice(0, 5000);
     interview.provider = result.provider || "api";
+    interview.providerWarning = String(result.providerWarning || "");
     interview.currentQuestion = question;
     interview.questionNumber = 1;
     interview.startedAt = Date.now();
@@ -3118,6 +3119,7 @@ async function submitInterviewTurn(options = {}) {
     if (!interview.pendingTurn.skipped && interview.pendingTurn.question.topic) interview.topics.push(interview.pendingTurn.question.topic);
     interview.pendingTurn = null;
     interview.provider = result.provider || interview.provider;
+    interview.providerWarning = String(result.providerWarning || "");
     if (isComplete) {
       await finishInterview("Interview complete.");
       return;
@@ -3194,7 +3196,7 @@ function renderInterviewRoom() {
     el.roomQuestionCategory.textContent = question.category.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
     el.roomQuestionDifficulty.textContent = question.difficulty.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase();
     el.roomInstruction.textContent = interview.provider === "local"
-      ? "AI service is not configured; this session is using local role-based prompts and heuristic feedback."
+      ? interview.providerWarning || "AI service is not configured; this session is using local role-based prompts and heuristic feedback."
       : question.isFollowUp ? "Follow-up · Build on the detail you just shared." : "Take a moment to think. Start when you’re ready.";
   }
   el.roomProgress.textContent = `Question ${Math.min(count, total)} of ${total}`;

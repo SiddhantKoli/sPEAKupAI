@@ -66,7 +66,7 @@ GEMINI_API_KEY=your_gemini_key_here
 
 - **Transcription**: uses Gemini (`gemini-3.5-flash-lite`) when `GEMINI_API_KEY` is configured, otherwise OpenAI Whisper when `OPENAI_API_KEY` is configured, otherwise the browser's built-in speech recognition.
 - **Speech evaluation**: uses Gemini when `GEMINI_API_KEY` is configured, otherwise OpenAI when `OPENAI_API_KEY` is configured. If neither key is available or the API request fails, the app falls back to deterministic local scoring so the product loop still works.
-- **Live Interview**: uses structured JSON question generation and answer evaluation through Gemini (`GEMINI_API_KEY`) or OpenAI (`OPENAI_API_KEY`). Gemini reads uploaded PDFs directly; text-based PDF and DOCX resume content is extracted locally for OpenAI. Scanned PDFs need Gemini for resume context. When no AI key is configured, the interview clearly labels its role-based questions and heuristic evaluations as local fallback behavior.
+- **Live Interview**: uses structured JSON question generation and answer evaluation through Gemini (`GEMINI_API_KEY`) or OpenAI (`OPENAI_API_KEY`). Gemini reads uploaded PDFs directly; text-based PDF and DOCX resume content is extracted locally for OpenAI. Scanned PDFs need Gemini for resume context. If no AI key is configured or all configured providers fail, the interview clearly labels its role-based questions and heuristic evaluations as local fallback behavior.
 - Optional model overrides: `GEMINI_INTERVIEW_MODEL` and `OPENAI_INTERVIEW_MODEL`.
 
 ## Deploy to Render
@@ -81,7 +81,7 @@ The free plan works fine: the app has no npm dependencies and no heavy model to 
 
 ## Deploy to Vercel
 
-A [`vercel.json`](./vercel.json) is included that runs the whole app (static files + `/api/transcribe` + `/api/analyze`) as a single serverless function.
+A [`vercel.json`](./vercel.json) is included that runs the whole app (static files + speech and live interview API routes) as a single serverless function.
 
 1. Push this repo to GitHub.
 2. On vercel.com, choose **Add New → Project** and import the repo (no framework preset needed — Vercel picks up `vercel.json`).

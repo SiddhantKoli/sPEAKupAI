@@ -73,24 +73,39 @@ async function startInterview(request, response) {
     const resumeBytes = Buffer.from(resume.data, "base64");
     const resumeText = resume.name.toLowerCase().endsWith(".docx") ? extractDocxText(resumeBytes) : extractPdfText(resumeBytes);
     const prompt = `Create the opening question for a live job interview. Return JSON only with {"question":{"question":"...","category":"...","topic":"...","difficulty":"...","is_follow_up":false,"follow_up_depth":0,"reason":"...","evaluation_focus":["..."]},"resume_summary":"..."}. Be concise, realistic, and do not invent experience or skills. Ask only one clear question.\n\nCandidate setup: ${JSON.stringify(config)}\nResume text extracted from DOCX (may be empty):\n${resumeText.slice(0, 20000)}`;
-    let output;
-    let provider = "local";
+    const tasks = [];
     if (process.env.GEMINI_API_KEY) {
-      const parts = [{ text: `${interviewSystemInstruction()}\n\n${prompt}` }];
-      if (/\.pdf$/i.test(resume.name)) parts.push({ inline_data: { mime_type: "application/pdf", data: resume.data } });
-      output = await interviewWithGemini(parts);
-      provider = "gemini";
-    } else if (process.env.OPENAI_API_KEY) {
-      if (/\.pdf$/i.test(resume.name) && !resumeText.trim()) throw new Error("This PDF has no extractable text for the configured provider. Try a DOCX resume or configure Gemini for PDF understanding.");
-      output = await interviewWithOpenAI(interviewSystemInstruction(), prompt);
-      provider = "openai";
-    } else {
-      const resumeSummary = resumeText ? resumeText.slice(0, 1200) : "";
-      output = { question: localOpeningQuestion(config, resumeSummary), resume_summary: resumeSummary };
+      tasks.push({
+        provider: "gemini",
+        run: () => {
+          const parts = [{ text: `${interviewSystemInstruction()}\n\n${prompt}` }];
+          if (/\.pdf$/i.test(resume.name)) parts.push({ inline_data: { mime_type: "application/pdf", data: resume.data } });
+          return interviewWithGemini(parts);
+        }
+      });
     }
+    if (process.env.OPENAI_API_KEY) {
+      tasks.push({
+        provider: "openai",
+        run: () => {
+          if (/\.pdf$/i.test(resume.name) && !resumeText.trim()) {
+            throw new Error("This PDF has no extractable text for OpenAI. Try a DOCX resume or configure Gemini for PDF understanding.");
+          }
+          return interviewWithOpenAI(interviewSystemInstruction(), prompt);
+        }
+      });
+    }
+    const { output, provider, providerWarning } = await runInterviewProviders(
+      tasks,
+      () => {
+        const resumeSummary = resumeText ? resumeText.slice(0, 1200) : "";
+        return { question: localOpeningQuestion(config, resumeSummary), resume_summary: resumeSummary };
+      },
+      "question generation"
+    );
     const question = validateInterviewQuestion(output.question, config.difficulty);
     if (!question) throw new Error("The interview model returned an invalid question.");
-    sendJson(response, 200, { question, resume_summary: String(output.resume_summary || resumeText.slice(0, 3000)).slice(0, 5000), provider });
+    sendJson(response, 200, { question, resume_summary: String(output.resume_summary || resumeText.slice(0, 3000)).slice(0, 5000), provider, providerWarning });
   } catch (error) {
     sendJson(response, 400, { error: error.message || "Unable to prepare the interview." });
   }
@@ -114,26 +129,52 @@ async function continueInterview(request, response) {
     const elapsed = Math.max(0, Number(body.elapsedSeconds) || 0);
     const timeRemaining = Math.max(0, Math.min(config.durationSeconds, Number(body.timeRemainingSeconds) || 0));
     const prompt = `Evaluate the candidate's latest answer and decide whether to ask one connected follow-up or move to a new topic. Return JSON only with {"evaluation":{"overall":number,"scores":{"relevance":number,"accuracy":number,"depth":number,"reasoning":number,"clarity":number},"strengths":["..."],"improvements":["..."],"feedback":"..."},"next_question":null or {"question":"...","category":"...","topic":"...","difficulty":"...","is_follow_up":boolean,"follow_up_depth":number,"reason":"...","evaluation_focus":["..."]},"complete":boolean,"time_remaining_seconds":number}. Scores are estimates from 1 to 10 and must cite evidence from the answer in feedback. A skipped turn has evaluation null, no penalty, and should continue professionally. Use the resume summary and conversation to avoid assumptions, repetition, and redundant topics. Ask only one question. Ask at most two consecutive follow-ups on one topic. Do not reveal correct answers. Complete at the planned question limit or when remaining time is too short for one more answer.\n\nConfiguration: ${JSON.stringify(config)}\nElapsed seconds: ${elapsed}\nRemaining seconds: ${timeRemaining}\nQuestion number: ${Number(body.questionNumber) || turns.length}\nTopics covered: ${JSON.stringify((body.topicsCovered || []).slice(-20))}\nResume summary: ${String(body.resumeSummary || "").slice(0, 5000)}\nConversation turns: ${JSON.stringify(turns)}`;
-    let output;
-    let provider = "local";
+    const tasks = [];
     if (process.env.GEMINI_API_KEY) {
-      output = await interviewWithGemini([{ text: `${interviewSystemInstruction()}\n\n${prompt}` }]);
-      provider = "gemini";
-    } else if (process.env.OPENAI_API_KEY) {
-      output = await interviewWithOpenAI(interviewSystemInstruction(), prompt);
-      provider = "openai";
-    } else {
-      output = localInterviewContinuation(config, turns, currentTurn, body, timeRemaining);
+      tasks.push({
+        provider: "gemini",
+        run: () => interviewWithGemini([{ text: `${interviewSystemInstruction()}\n\n${prompt}` }])
+      });
     }
+    if (process.env.OPENAI_API_KEY) {
+      tasks.push({
+        provider: "openai",
+        run: () => interviewWithOpenAI(interviewSystemInstruction(), prompt)
+      });
+    }
+    const { output, provider, providerWarning } = await runInterviewProviders(
+      tasks,
+      () => localInterviewContinuation(config, turns, currentTurn, body, timeRemaining),
+      "answer evaluation"
+    );
     const evaluation = currentTurn.skipped ? null : validateInterviewEvaluation(output.evaluation);
     if (!currentTurn.skipped && !evaluation) throw new Error("The interview model returned an invalid answer evaluation.");
     const complete = Boolean(output.complete) || Number(body.questionNumber) >= config.maxQuestions || timeRemaining <= 20;
     const nextQuestion = complete ? null : validateInterviewQuestion(output.next_question, config.difficulty);
     if (!complete && !nextQuestion) throw new Error("The interview model did not return a valid next question.");
-    sendJson(response, 200, { evaluation, next_question: nextQuestion, complete, time_remaining_seconds: timeRemaining, provider });
+    sendJson(response, 200, { evaluation, next_question: nextQuestion, complete, time_remaining_seconds: timeRemaining, provider, providerWarning });
   } catch (error) {
     sendJson(response, 400, { error: error.message || "Unable to process this interview answer." });
   }
+}
+
+async function runInterviewProviders(tasks, localFallback, taskDescription) {
+  const failedProviders = [];
+  for (const task of tasks) {
+    try {
+      return { output: await task.run(), provider: task.provider, providerWarning: "" };
+    } catch (error) {
+      console.warn(`${task.provider} interview ${taskDescription} failed: ${error.message}`);
+      failedProviders.push(task.provider);
+    }
+  }
+  return {
+    output: localFallback(),
+    provider: "local",
+    providerWarning: failedProviders.length
+      ? `AI ${taskDescription} failed with ${failedProviders.join(" and ")}; using local interview coaching instead.`
+      : ""
+  };
 }
 
 function interviewSystemInstruction() {
