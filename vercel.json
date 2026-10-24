@@ -34,6 +34,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "firebase-auth.bundle.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "assets/mode-shift/casual.webp",
       "use": "@vercel/static"
     },
