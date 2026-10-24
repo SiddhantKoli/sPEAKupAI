@@ -2187,6 +2187,7 @@ el.googleSignIn?.addEventListener("click", async () => {
   try {
     if (!window.SpeakUpFirebase) throw new Error("Firebase did not load. Check your connection and local Firebase config.");
     await window.SpeakUpFirebase.signIn();
+    completeExplicitLogin();
   }
   catch (error) { cancelLoginAttempt(); if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Google sign-in failed: ${error.message}`; }
   finally { el.googleSignIn.disabled = false; }
@@ -2197,49 +2198,43 @@ el.googleSignOut?.addEventListener("click", async () => {
   catch (error) { if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Could not sign out: ${error.message}`; }
 });
 const GUEST_ACCESS_KEY = "speakup-guest-access-v1";
-const LAST_ACTIVE_KEY = "speakup-last-active-at-v1";
-const LOGIN_INTRO_IDLE_MS = 10 * 60 * 1000;
 let initialEntryResolved = false;
 let explicitLoginPending = false;
-let lastActivityWriteAt = 0;
+let guestAccessGranted = false;
+let entryIntroStarted = false;
+try { localStorage.removeItem(GUEST_ACCESS_KEY); } catch { /* ignore unavailable storage */ }
 function markLoginAttempt() { explicitLoginPending = true; }
 function cancelLoginAttempt() { explicitLoginPending = false; }
-function recordWebsiteActivity() {
-  if (document.body.classList.contains("auth-check") || document.body.classList.contains("auth-gate") || document.body.classList.contains("splash-active")) return;
-  const now = Date.now();
-  if (now - lastActivityWriteAt < 30000) return;
-  lastActivityWriteAt = now;
-  try { localStorage.setItem(LAST_ACTIVE_KEY, String(now)); } catch { /* animation timing is optional */ }
-}
-function playLoginIntroIfDue() {
-  let lastActiveAt = 0;
-  try { lastActiveAt = Number(localStorage.getItem(LAST_ACTIVE_KEY)) || 0; } catch { /* animation timing is optional */ }
-  const showIntro = !lastActiveAt || Date.now() - lastActiveAt >= LOGIN_INTRO_IDLE_MS;
-  recordWebsiteActivity();
-  if (!showIntro) return;
+function playEntryIntro() {
+  if (entryIntroStarted) return;
   const splash = document.getElementById("splashScreen");
   if (!splash) return;
+  entryIntroStarted = true;
   document.body.classList.add("splash-active");
   splash.classList.add("is-visible");
   initSplashScreen();
 }
-function enterWebsite(page = "setup", { recordActivity = true } = {}) {
+function enterWebsite(page = "setup") {
   initialEntryResolved = true;
   document.body.classList.remove("auth-check", "auth-gate", "splash-active");
   showPage(page);
-  if (recordActivity) recordWebsiteActivity();
 }
 function enterAuthGate() {
   initialEntryResolved = true;
+  entryIntroStarted = false;
   document.body.classList.remove("auth-check", "splash-active");
   document.body.classList.add("auth-gate");
   showPage("auth");
 }
-document.addEventListener("pointerdown", recordWebsiteActivity, { passive: true });
-document.addEventListener("keydown", recordWebsiteActivity);
+function completeExplicitLogin() {
+  explicitLoginPending = false;
+  if (document.body.classList.contains("auth-gate") || !initialEntryResolved) enterWebsite("setup");
+  playEntryIntro();
+}
 document.querySelector("#authGuestEntry")?.addEventListener("click", () => {
-  try { localStorage.setItem(GUEST_ACCESS_KEY, "true"); } catch { /* guest access still works for this visit */ }
+  guestAccessGranted = true;
   enterWebsite("setup");
+  playEntryIntro();
 });
 let authMode = "login";
 function setAuthMode(mode) {
@@ -2291,6 +2286,7 @@ el.authForm?.addEventListener("submit", async (event) => {
   try {
     if (authMode === "signup") await window.SpeakUpFirebase.createAccount(email, password, el.authName.value.trim());
     else await window.SpeakUpFirebase.signInWithEmail(email, password);
+    completeExplicitLogin();
     el.authFeedback.textContent = "You’re in. Loading your SpeakUp space…";
   } catch (error) {
     cancelLoginAttempt();
@@ -2304,7 +2300,10 @@ el.authGoogleSignIn?.addEventListener("click", async () => {
   el.authGoogleSignIn.disabled = true;
   if (el.authFeedback) el.authFeedback.textContent = "Opening Google sign-in…";
   markLoginAttempt();
-  try { await window.SpeakUpFirebase.signIn(); }
+  try {
+    await window.SpeakUpFirebase.signIn();
+    completeExplicitLogin();
+  }
   catch (error) { cancelLoginAttempt(); if (el.authFeedback) el.authFeedback.textContent = authErrorMessage(error); }
   finally { el.authGoogleSignIn.disabled = false; }
 });
@@ -2319,26 +2318,21 @@ window.addEventListener("speakup:auth-state", (event) => {
   const { user, profile, history, cloudError, isolateLocal, pending } = event.detail || {};
   const explicitLogin = Boolean(user && explicitLoginPending);
   if (user) explicitLoginPending = false;
-  let hasGuestAccess = false;
-  try { hasGuestAccess = localStorage.getItem(GUEST_ACCESS_KEY) === "true"; } catch { /* ignore unavailable storage */ }
   if (!initialEntryResolved || document.body.classList.contains("auth-check")) {
-    if (user || hasGuestAccess) {
+    if (explicitLogin) {
       const requested = location.hash.replace(/^#/, "");
       const initialPage = ["auth", "login", "signup"].includes(requested) ? "setup" : undefined;
-      // A restored Firebase session is a return visit too. Check its idle time
-      // before recording activity so a stale session can show the intro once.
-      enterWebsite(initialPage || undefined, { recordActivity: !user && !explicitLogin });
+      enterWebsite(initialPage || undefined);
       if (!initialPage && requested && requested !== "setup") showPageFromHash();
-      if (user) playLoginIntroIfDue();
     } else {
       enterAuthGate();
     }
-  } else if (!user && !hasGuestAccess) {
+  } else if (!user && !guestAccessGranted) {
     enterAuthGate();
-  } else if (user && document.body.classList.contains("auth-gate")) {
-    enterWebsite("setup", { recordActivity: !explicitLogin });
+  } else if (explicitLogin && document.body.classList.contains("auth-gate")) {
+    enterWebsite("setup");
   }
-  if (explicitLogin) playLoginIntroIfDue();
+  if (explicitLogin) playEntryIntro();
   if (el.googleSignIn) el.googleSignIn.hidden = Boolean(user);
   if (el.googleSignOut) el.googleSignOut.hidden = !user;
   if (el.accountStatus) {
