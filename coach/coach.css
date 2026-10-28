@@ -44,34 +44,36 @@
   text-transform: uppercase;
 }
 
-.coach-studio-header p:last-child {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: .86rem;
-  line-height: 1.45;
-}
-
-.coach-save-indicator {
+.coach-save-actions {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 8px;
-  padding: 8px 11px;
-  border: 1px solid var(--coach-line);
-  border-radius: 99px;
+  gap: 12px;
+}
+
+.coach-save-actions span {
   color: var(--muted);
   font-size: .72rem;
   font-weight: 750;
 }
 
-.coach-save-indicator span,
-.coach-preview-topline i {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--green);
+.coach-save-button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 2px solid var(--coach-ink);
+  border-radius: 4px;
+  background: var(--coach-yellow);
+  box-shadow: 3px 3px 0 var(--coach-ink);
+  color: var(--coach-ink);
+  font: 800 .82rem/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  transition: transform .14s ease, box-shadow .14s ease, opacity .14s ease;
 }
+.coach-save-button:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--coach-ink); }
+.coach-save-button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--coach-ink); }
+.coach-save-button:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.coach-save-button:disabled { opacity: .55; cursor: default; }
+.coach-preview-topline i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--green); }
 
 .coach-studio-body {
   display: grid;
@@ -164,46 +166,6 @@
   white-space: nowrap;
 }
 
-.coach-preview-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 38px 38px;
-  gap: 7px;
-}
-
-.coach-action {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 7px 9px;
-  border: 1px solid var(--coach-line);
-  border-radius: 7px;
-  background: var(--paper);
-  box-shadow: 2px 2px 0 var(--coach-ink);
-  color: var(--ink);
-  font-size: .7rem;
-  font-weight: 800;
-  line-height: 1;
-  text-transform: none;
-  cursor: pointer;
-  transition: background-color .14s ease, transform .14s ease, box-shadow .14s ease;
-}
-
-.coach-action:first-child,
-.coach-action:nth-child(2) { grid-row: 1; }
-.coach-action:nth-child(3) { grid-column: 3; grid-row: 1; }
-.coach-action:nth-child(4) { grid-column: 4; grid-row: 1; }
-.coach-action:nth-child(5) { grid-column: 1 / 3; grid-row: 2; }
-.coach-action:nth-child(6) { grid-column: 3 / 5; grid-row: 2; }
-.coach-action-primary { background: var(--coach-yellow); }
-.coach-action:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--coach-ink); }
-.coach-action:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
-.coach-action:disabled { opacity: .42; cursor: not-allowed; }
-.coach-action-icon { padding: 7px; }
-.coach-action .coach-icon { width: 15px; height: 15px; stroke-width: 2.4; }
-
 .coach-workbench { min-width: 0; }
 .coach-tabs {
   display: grid;
@@ -242,7 +204,6 @@
 
 .coach-tab .coach-icon { width: 16px; height: 16px; flex: none; stroke-width: 2.2; }
 .coach-tab:focus-visible,
-.coach-action:focus-visible,
 .coach-option:focus-visible,
 .coach-swatch-option:focus-visible,
 .coach-pattern-option:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
@@ -344,7 +305,6 @@ html[data-theme="dark"] .coach-pattern-sample { border-color: #69768a; }
   .coach-preview-column { position: static; grid-row: 1; }
   .coach-preview-slab { width: min(100%, 390px); margin: 0 auto; }
   .coach-avatar-stage { width: min(100%, 315px); margin-inline: auto; }
-  .coach-preview-actions { width: min(100%, 390px); margin-inline: auto; }
   .coach-workbench { grid-row: 2; }
   .coach-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 10px; scroll-snap-type: x proximity; }
   .coach-tab { flex: 0 0 auto; min-width: 76px; scroll-snap-align: start; }
@@ -354,15 +314,14 @@ html[data-theme="dark"] .coach-pattern-sample { border-color: #69768a; }
   .coach-builder { gap: 18px; padding: 15px; }
   .coach-studio-header { align-items: flex-start; }
   .coach-studio-header h2 { font-size: 1.55rem; }
-  .coach-save-indicator { padding: 7px 8px; font-size: .63rem; }
   .coach-option-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
   .coach-option-label { font-size: .63rem; }
   .coach-patterns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .coach-preview-actions { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 36px 36px; }
-  .coach-action { padding-inline: 6px; font-size: .64rem; }
+  .coach-save-actions { align-items: flex-end; flex-direction: column-reverse; gap: 5px; }
+  .coach-save-actions span { font-size: .63rem; }
+  .coach-save-button { min-height: 38px; padding-inline: 12px; font-size: .72rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .coach-action,
   .coach-option { transition: none; }
 }

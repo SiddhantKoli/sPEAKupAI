@@ -140,16 +140,6 @@
   // node_modules/lucide/dist/esm/icons/check.mjs
   var Check = [["path", { d: "M20 6 9 17l-5-5" }]];
 
-  // node_modules/lucide/dist/esm/icons/chevron-down.mjs
-  var ChevronDown = [["path", { d: "m6 9 6 6 6-6" }]];
-
-  // node_modules/lucide/dist/esm/icons/download.mjs
-  var Download = [
-    ["path", { d: "M12 15V3" }],
-    ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }],
-    ["path", { d: "m7 10 5 5 5-5" }]
-  ];
-
   // node_modules/lucide/dist/esm/icons/face-slightly-smiling.mjs
   var FaceSlightlySmiling = [
     ["path", { d: "M15 10V9" }],
@@ -181,18 +171,6 @@
     ["circle", { cx: "7", cy: "18", r: "3" }]
   ];
 
-  // node_modules/lucide/dist/esm/icons/redo-2.mjs
-  var Redo2 = [
-    ["path", { d: "m15 14 5-5-5-5" }],
-    ["path", { d: "M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" }]
-  ];
-
-  // node_modules/lucide/dist/esm/icons/rotate-ccw.mjs
-  var RotateCcw = [
-    ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }],
-    ["path", { d: "M3 3v5h5" }]
-  ];
-
   // node_modules/lucide/dist/esm/icons/scissors.mjs
   var Scissors = [
     ["circle", { cx: "6", cy: "6", r: "3" }],
@@ -212,15 +190,6 @@
     ]
   ];
 
-  // node_modules/lucide/dist/esm/icons/shuffle.mjs
-  var Shuffle = [
-    ["path", { d: "m18 14 4 4-4 4" }],
-    ["path", { d: "m18 2 4 4-4 4" }],
-    ["path", { d: "M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22" }],
-    ["path", { d: "M2 6h1.972a4 4 0 0 1 3.6 2.2" }],
-    ["path", { d: "M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45" }]
-  ];
-
   // node_modules/lucide/dist/esm/icons/sparkles.mjs
   var Sparkles = [
     [
@@ -232,12 +201,6 @@
     ["path", { d: "M20 2v4" }],
     ["path", { d: "M22 4h-4" }],
     ["circle", { cx: "4", cy: "20", r: "2" }]
-  ];
-
-  // node_modules/lucide/dist/esm/icons/undo-2.mjs
-  var Undo2 = [
-    ["path", { d: "M9 14 4 9l5-5" }],
-    ["path", { d: "M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" }]
   ];
 
   // node_modules/lucide/dist/esm/icons/users-round.mjs
@@ -8391,9 +8354,7 @@
   var ink = COACH_PALETTE.ink;
   function renderCoachSvg(input, { title = "SpeakUp coach" } = {}) {
     const config = normalizeCoachConfig(input);
-    const customHat = ["beret", "sun-hat", "fedora"].includes(config.hat.style);
-    const topVariant = config.hat.style === "none" || customHat ? config.hair.style : config.hat.style;
-    const topColor = config.hat.style === "none" ? config.hair.color : config.hat.color;
+    const topVariant = config.hair.style;
     const customGlasses = ["cat-eye", "monocle"].includes(config.glasses.style);
     const face = config.face;
     const clothingVariant = config.top.style;
@@ -8403,7 +8364,7 @@
       idRandomization: true,
       topProbability: 100,
       topVariant: [topVariant],
-      topColor: [topColor],
+      topColor: [config.hair.color],
       hairColor: [config.hair.color],
       accessoriesProbability: config.glasses.style === "none" || customGlasses ? 0 : 100,
       accessoriesVariant: ["none", "cat-eye", "monocle"].includes(config.glasses.style) ? ["round"] : [config.glasses.style],
@@ -8434,18 +8395,18 @@
   }
   function neckwearLayer(config) {
     const color = config.neck.color;
-    const line = `stroke="${ink}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
+    const line = `stroke="${ink}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"`;
     const details = {
       none: "",
-      tie: `<path d="m124 190 16 8 16-8-4 14 6 42-18 18-18-18 6-42z" fill="${color}" ${line}/><path d="m124 190 16 8 16-8" fill="none" ${line}/>`,
-      "bow-tie": `<path d="m121 193 15 4-2 12-17-3zm38 0-15 4 2 12 17-3z" fill="${color}" ${line}/><circle cx="140" cy="201" r="4" fill="${contrastColor(color)}" ${line}/>`,
-      scarf: `<path d="M112 183c5 12 15 18 28 18s23-6 28-18l-7 22h-42z" fill="${color}" ${line}/><path d="m156 202 7 35-13-6-2-27" fill="${color}" ${line}/>`,
-      bandana: `<path d="m113 186 13-5 14 10 14-10 13 5-8 18h-38z" fill="${color}" ${line}/><path d="m140 191-7 12h14z" fill="${contrastColor(color)}"/>`,
-      ascot: `<path d="m126 184 14 10 14-10-4 17 8 25-18 18-18-18 8-25z" fill="${color}" ${line}/><path d="m126 184 14 10 14-10" fill="none" ${line}/>`,
+      tie: `<path d="m127 181 13 8 13-8 2 13-5 6 10 39-20 17-20-17 10-39-5-6z" fill="${color}" ${line}/><path d="m127 181 13 8 13-8" fill="none" ${line}/><path d="m136 201 4 50 4-50" fill="none" stroke="${contrastColor(color)}" stroke-width="2"/>`,
+      "bow-tie": `<path d="m137 188-18-8-1 21 18-5zm6 0 18-8 1 21-18-5z" fill="${color}" ${line}/><circle cx="140" cy="190" r="4" fill="${contrastColor(color)}" ${line}/>`,
+      scarf: `<path d="M119 177q21 17 42 0l6 12q-9 14-27 14t-27-14z" fill="${color}" ${line}/><path d="m158 196 8 31-12 8-5-34" fill="${color}" ${line}/><path d="m126 184 14 8 14-8" fill="none" stroke="${contrastColor(color)}" stroke-width="2.4"/>`,
+      bandana: `<path d="m117 179 11-5 12 9 12-9 11 5-7 18h-32z" fill="${color}" ${line}/><path d="m140 183-7 11h14z" fill="${contrastColor(color)}" ${line}/>`,
+      ascot: `<path d="m127 179 13 9 13-9 2 14-6 8 10 26-19 15-19-15 10-26-6-8z" fill="${color}" ${line}/><path d="m132 191 8 6 8-6m-8 6v40" fill="none" stroke="${contrastColor(color)}" stroke-width="2.4"/>`,
       pearls: Array.from({ length: 9 }, (_, index) => {
         const x = 112 + index * 7;
-        const y = 190 + Math.round(Math.abs(index - 4) * 1.4);
-        return `<circle cx="${x}" cy="${y}" r="3.2" fill="#fffefd" ${line}/>`;
+        const y = 185 + Math.round(Math.abs(index - 4) * 2.2);
+        return `<circle cx="${x}" cy="${y}" r="3.5" fill="#fffefd" ${line}/><circle cx="${x - 1}" cy="${y - 1}" r=".9" fill="#fffefd"/>`;
       }).join("")
     }[config.neck.style];
     return details ? `<g aria-hidden="true">${details}</g>` : "";
@@ -8454,43 +8415,54 @@
     return "";
   }
   function accessoryLayer(config) {
-    return config.accessories.map((id, index) => {
-      const tint = [COACH_PALETTE.yellow, COACH_PALETTE.red, COACH_PALETTE.blue][index % 3];
-      const x = index === 0 ? 170 : index === 1 ? 106 : 140;
-      const y = index === 0 ? 218 : index === 1 ? 230 : 250;
-      const line = `stroke="${ink}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
+    const line = `stroke="${ink}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"`;
+    const colors = {
+      brooch: COACH_PALETTE.yellow,
+      "star-pin": COACH_PALETTE.yellow,
+      medal: COACH_PALETTE.blue,
+      flower: COACH_PALETTE.red,
+      "pocket-square": COACH_PALETTE.blue,
+      earrings: COACH_PALETTE.yellow,
+      badge: COACH_PALETTE.red,
+      chain: COACH_PALETTE.yellow
+    };
+    return config.accessories.map((id) => {
+      const color = colors[id] || COACH_PALETTE.yellow;
       const shapes = {
-        brooch: `<circle cx="${x}" cy="${y}" r="8" fill="${tint}" ${line}/><circle cx="${x}" cy="${y}" r="3" fill="#fffefd"/>`,
-        "star-pin": `<path d="m${x} ${y - 9} 2.8 6 6.2.8-4.5 4.3 1.1 6.2-5.6-3-5.6 3 1.1-6.2-4.5-4.3 6.2-.8z" fill="${tint}" ${line}/>`,
-        medal: `<path d="m${x - 4} ${y - 13} 4 9 4-9" fill="${tint}" ${line}/><circle cx="${x}" cy="${y + 1}" r="7" fill="${COACH_PALETTE.yellow}" ${line}/><path d="m${x} ${y - 3} 1.2 2.6 2.8.3-2 1.9.5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-1.9 2.8-.3z" fill="${COACH_PALETTE.red}"/>`,
-        flower: `<g ${line}><circle cx="${x}" cy="${y}" r="3" fill="${COACH_PALETTE.yellow}"/><circle cx="${x}" cy="${y - 6}" r="4" fill="${COACH_PALETTE.red}"/><circle cx="${x + 6}" cy="${y}" r="4" fill="${COACH_PALETTE.red}"/><circle cx="${x}" cy="${y + 6}" r="4" fill="${COACH_PALETTE.red}"/><circle cx="${x - 6}" cy="${y}" r="4" fill="${COACH_PALETTE.red}"/></g>`,
-        "pocket-square": `<path d="M${x - 9} ${y - 5}h18v15l-9-5-9 5z" fill="${tint}" ${line}/>`,
-        earrings: `<g ${line}><circle cx="98" cy="112" r="4" fill="${tint}"/><circle cx="182" cy="112" r="4" fill="${tint}"/></g>`,
-        badge: `<rect x="${x - 12}" y="${y - 9}" width="24" height="18" rx="3" fill="#fffefd" ${line}/><path d="M${x - 7} ${y - 3}h14M${x - 7} ${y + 2}h8" stroke="${tint}" stroke-width="2" stroke-linecap="round"/>`,
-        chain: `<path d="M${x - 13} ${y - 8}q13 19 26 0m-26 0q-5 6 0 11m26-11q5 6 0 11" fill="none" stroke="${tint}" stroke-width="3" stroke-linecap="round"/>`
+        brooch: `<g ${line}><path d="M174 207v-8"/><circle cx="174" cy="216" r="9" fill="${color}"/><circle cx="174" cy="216" r="3.5" fill="#fffefd" stroke="none"/></g>`,
+        "star-pin": `<path d="m105 204 3.6 7.4 8.1 1.2-5.9 5.7 1.4 8.1-7.2-3.8-7.2 3.8 1.4-8.1-5.9-5.7 8.1-1.2z" fill="${color}" ${line}/>`,
+        medal: `<g ${line}><path d="m133 197 7 12 7-12" fill="none" stroke="${COACH_PALETTE.red}" stroke-width="4"/><circle cx="140" cy="216" r="9" fill="${color}"/><path d="m140 210 1.8 3.4 3.8.5-2.8 2.7.7 3.8-3.5-1.8-3.5 1.8.7-3.8-2.8-2.7 3.8-.5z" fill="${COACH_PALETTE.yellow}" stroke="none"/></g>`,
+        flower: `<g ${line}><path d="M105 228v10" fill="none" stroke="${COACH_PALETTE.green}" stroke-width="2.4"/><circle cx="105" cy="219" r="4" fill="${COACH_PALETTE.yellow}"/><circle cx="105" cy="211" r="5" fill="${color}"/><circle cx="113" cy="219" r="5" fill="${color}"/><circle cx="105" cy="227" r="5" fill="${color}"/><circle cx="97" cy="219" r="5" fill="${color}"/></g>`,
+        "pocket-square": `<path d="M165 198h21v24l-10.5-6-10.5 6z" fill="${color}" ${line}/><path d="M171 198q2 8 8 10" fill="none" stroke="#fffefd" stroke-width="2"/>`,
+        earrings: `<g ${line}><path d="M77 119v9m126-9v9" fill="none" stroke="${color}" stroke-width="3"/><circle cx="77" cy="132" r="4.5" fill="${color}"/><circle cx="203" cy="132" r="4.5" fill="${color}"/></g>`,
+        badge: `<g ${line}><rect x="165" y="224" width="27" height="21" rx="3" fill="#fffefd"/><path d="M171 231h15m-15 5h10" stroke="${color}" stroke-width="2"/></g>`,
+        chain: `<g fill="none" stroke="${color}" stroke-width="3"><path d="M119 207q21 28 42 0"/><path d="M160 207q5 4 0 9"/><circle cx="160" cy="220" r="5" fill="${color}" stroke="${ink}" stroke-width="2"/></g>`
       }[id];
       return shapes || "";
     }).join("");
   }
   function hatLayer(config) {
-    if (!["beret", "sun-hat", "fedora"].includes(config.hat.style)) return "";
+    if (config.hat.style === "none") return "";
     const color = config.hat.color;
-    const line = `stroke="${ink}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
+    const line = `stroke="${ink}" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"`;
     const shapes = {
-      beret: `<path d="M83 66c1-25 22-42 55-42 28 0 49 14 55 37-30-8-73-7-110 5z" fill="${color}" ${line}/><path d="M137 25q6-10 15-8" fill="none" ${line}/><path d="M89 61q42-16 96-4" fill="none" stroke="${contrastColor(color)}" stroke-width="2" stroke-linecap="round"/>`,
-      "sun-hat": `<path d="M99 51c4-22 18-34 41-34s37 12 41 34l5 8H94z" fill="${color}" ${line}/><path d="M68 59q72-16 144 0-4 15-72 17-68-2-72-17z" fill="${color}" ${line}/><path d="M103 54q37-9 74 0" fill="none" stroke="${contrastColor(color)}" stroke-width="2.5"/>`,
-      fedora: `<path d="M100 52q7-28 40-28t40 28l4 9H96z" fill="${color}" ${line}/><path d="M73 61q67-14 134 0-4 12-67 13-63-1-67-13z" fill="${color}" ${line}/><path d="M101 54h78" fill="none" stroke="${contrastColor(color)}" stroke-width="4"/>`
+      hat: `<path d="M79 88q4-45 61-49 47 1 63 44l-14 8H86z" fill="${color}" ${line}/><path d="M78 83q46-17 125-3-3 13-62 14-49 0-63-11z" fill="${color}" ${line}/><path d="M93 82q48-11 95-4" fill="none" stroke="${contrastColor(color)}" stroke-width="3"/>`,
+      beret: `<path d="M76 82q9-45 63-53 47-5 66 34-54-16-126 19z" fill="${color}" ${line}/><path d="M136 30q8-15 20-16" fill="none" ${line}/><path d="M82 79q53-21 115-17" fill="none" stroke="${contrastColor(color)}" stroke-width="3"/>`,
+      "sun-hat": `<path d="M100 73q3-39 40-42 38 2 41 42l5 12H95z" fill="${color}" ${line}/><path d="M67 83q73-19 146 0-4 17-73 19-69-1-73-19z" fill="${color}" ${line}/><path d="M105 78q35-9 70 0" fill="none" stroke="${contrastColor(color)}" stroke-width="3"/>`,
+      winterHat04: `<path d="M82 81q3-42 58-45 53 2 58 45v8H82z" fill="${color}" ${line}/><path d="M82 78q58-13 116 0v14q-58 13-116 0z" fill="${contrastColor(color)}" ${line}/><circle cx="140" cy="29" r="10" fill="${color}" ${line}/>`,
+      fedora: `<path d="M99 76q8-41 41-44 37 3 41 44l5 10H94z" fill="${color}" ${line}/><path d="M69 85q71-17 142 0-4 14-71 15-67-1-71-15z" fill="${color}" ${line}/><path d="M98 78q42-12 84 0v7q-42 8-84 0z" fill="${contrastColor(color)}" stroke="${ink}" stroke-width="2.4"/>`,
+      hijab: `<path d="M76 91q-2-64 64-64 67 0 64 64l-13 58q-5 15-18 20l8-74q-5-39-41-42-38 3-42 42l8 74q-13-5-18-20z" fill="${color}" ${line}/><path d="M91 85q5-47 49-49 43 2 49 49" fill="none" stroke="${contrastColor(color)}" stroke-width="3.2"/>`
     }[config.hat.style];
-    return `<g aria-hidden="true">${shapes}</g>`;
+    return shapes ? `<g aria-hidden="true">${shapes}</g>` : "";
   }
   function glassesLayer(config) {
     const color = config.glasses.color;
-    const line = `fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
+    const line = `fill="none" stroke="${color}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"`;
     if (config.glasses.style === "cat-eye") {
-      return `<g aria-hidden="true" ${line}><path d="M56 61q21-12 48-3l-4 20q-9 12-25 10-18-2-19-27z"/><path d="M224 61q-21-12-48-3l4 20q9 12 25 10 18-2 19-27z"/><path d="M104 62q22-13 32-2m12 0q10-11 32 2"/></g>`;
+      return `<g aria-hidden="true" ${line}><path d="M82 104q23-10 49-3l-2 22q-2 13-17 14-20 0-24-15z"/><path d="M198 104q-23-10-49-3l2 22q2 13 17 14 20 0 24-15z"/><path d="M131 106q9-5 18 0m-68 1-7-2m127 1 7-2"/></g>`;
     }
     if (config.glasses.style === "monocle") {
-      return `<g aria-hidden="true" ${line}><circle cx="88" cy="70" r="22"/><path d="M104 88q13 21 2 38"/></g>`;
+      return `<g aria-hidden="true" ${line}><circle cx="169" cy="116" r="21"/><path d="M183 132q8 8 5 18t4 12"/><circle cx="169" cy="116" r="16" stroke-width="1.3" opacity=".65"/></g>`;
     }
     return "";
   }
@@ -8500,45 +8472,6 @@
   }
   function escapeXml(value) {
     return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char]);
-  }
-
-  // coach/export.js
-  function download(url, filename) {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1e3);
-  }
-  function downloadCoachSvg(config) {
-    const svg = renderCoachSvg(config, { title: "My SpeakUp coach" });
-    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-    download(url, "speakup-coach.svg");
-  }
-  function downloadCoachPng(config) {
-    const svg = renderCoachSvg(config, { title: "My SpeakUp coach" });
-    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-    const image = new Image();
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 960;
-      canvas.height = 960;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        URL.revokeObjectURL(url);
-        return;
-      }
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (blob) download(URL.createObjectURL(blob), "speakup-coach.png");
-        URL.revokeObjectURL(url);
-      }, "image/png");
-    };
-    image.onerror = () => URL.revokeObjectURL(url);
-    image.src = url;
   }
 
   // coach/ui.js
@@ -8551,26 +8484,15 @@
     badge: Badge,
     "hat-glasses": HatGlasses,
     sparkles: Sparkles,
-    shuffle: Shuffle,
-    "rotate-ccw": RotateCcw,
-    "undo-2": Undo2,
-    "redo-2": Redo2,
-    download: Download,
-    check: Check,
-    "chevron-down": ChevronDown
+    check: Check
   };
   var preview = document.querySelector("#profileMascot");
   var customizer = document.querySelector("#mascotCustomizer");
   if (preview && customizer) {
-    let rememberChange = function() {
-      undoStack.push(JSON.stringify(config));
-      if (undoStack.length > maxHistory) undoStack.shift();
-      redoStack.length = 0;
-    }, update = function(next, { remember = true } = {}) {
-      if (remember) rememberChange();
-      config = saveCoachConfig(normalizeCoachConfig(next));
+    let update = function(next) {
+      config = normalizeCoachConfig(next);
+      dirty = true;
       render();
-      window.dispatchEvent(new CustomEvent("speakup:coach-change", { detail: { config } }));
     }, applyChoice = function(path, value, target = config) {
       const next = JSON.parse(JSON.stringify(target));
       const keys = path.split(".");
@@ -8599,7 +8521,7 @@
         let isSelected;
         if (accessory) {
           const chosen = config.accessories.includes(value);
-          sample = normalizeCoachConfig({ ...config, accessories: chosen ? config.accessories : [...config.accessories.slice(0, 2), value] });
+          sample = normalizeCoachConfig({ ...config, accessories: chosen ? config.accessories : [...config.accessories.filter((item) => item !== value).slice(0, 2), value] });
           isSelected = chosen;
         } else {
           sample = candidateFor(path, value);
@@ -8671,10 +8593,10 @@
       if (tablist) tablist.innerHTML = renderTabs();
       const panel = customizer.querySelector(".coach-picker-panel");
       if (panel) panel.innerHTML = renderPanel();
-      const undo = customizer.querySelector('[data-action="undo"]');
-      const redo = customizer.querySelector('[data-action="redo"]');
-      if (undo) undo.disabled = undoStack.length === 0;
-      if (redo) redo.disabled = redoStack.length === 0;
+      const saveButton = customizer.querySelector('[data-action="save"]');
+      const saveStatus = customizer.querySelector("#coachSaveStatus");
+      if (saveButton) saveButton.disabled = !dirty;
+      if (saveStatus) saveStatus.textContent = dirty ? "Unsaved changes" : "All changes saved";
       const customCount = customizer.querySelector("#coachLookCount");
       if (customCount) customCount.textContent = `${config.accessories.length} ${config.accessories.length === 1 ? "extra" : "extras"}`;
       createIcons({ icons: iconSet, attrs: { class: "coach-icon", "aria-hidden": "true", focusable: "false" }, root: customizer });
@@ -8694,38 +8616,10 @@
         if (option.dataset.setting === path) option.tabIndex = option.dataset.value === value ? 0 : -1;
       });
       customizer.querySelector(`[data-setting="${path}"][data-value="${value}"]`)?.focus();
-    }, randomizedConfig = function() {
-      const base = pick(COACH_BASES);
-      const clothes = coachOptionsFor("clothes", base);
-      const extras = coachOptionsFor("extras", base).map((part) => part.id);
-      return normalizeCoachConfig({
-        ...config,
-        base,
-        skin: pick(COACH_PALETTE.skin),
-        hair: { style: pick(coachOptionsFor("hair", base)).id, color: pick(COACH_PALETTE.hair) },
-        glasses: { style: pick(coachOptionsFor("glasses").map((part) => part.id)), color: pick(COACH_PALETTE.glasses) },
-        top: { style: pick(clothes).id, color: pick(COACH_PALETTE.clothes), pattern: pick(["solid", "stripes", "checks", "dots"]) },
-        neck: { style: pick(coachOptionsFor("neckwear").map((part) => part.id)), color: pick(COACH_PALETTE.clothes) },
-        hat: { style: pick(coachOptionsFor("hats").map((part) => part.id)), color: pick(COACH_PALETTE.clothes) },
-        face: {
-          eyes: pick(coachOptionsFor("eyes").map((part) => part.id)),
-          mouth: pick(coachOptionsFor("mouth").map((part) => part.id)),
-          brows: pick(coachOptionsFor("brows").map((part) => part.id)),
-          facialHair: base === "man" ? pick(coachOptionsFor("facialHair", base).map((part) => part.id)) : "none"
-        },
-        accessories: [...new Set(Array.from({ length: Math.floor(Math.random() * 4) }, () => pick(extras)))]
-      });
-    }, restoreHistory = function(from, to) {
-      to.push(JSON.stringify(config));
-      config = saveCoachConfig(normalizeCoachConfig(JSON.parse(from.pop())));
-      render();
-      window.dispatchEvent(new CustomEvent("speakup:coach-change", { detail: { config } }));
     };
     let config = readSavedCoachConfig();
     let activeTab = "base";
-    const undoStack = [];
-    const redoStack = [];
-    const maxHistory = 40;
+    let dirty = false;
     customizer.addEventListener("click", (event) => {
       const tab = event.target.closest("[data-coach-tab]");
       if (tab) {
@@ -8753,12 +8647,12 @@
         return;
       }
       const action = event.target.closest("[data-action]")?.dataset.action;
-      if (action === "reset") update(defaultCoachConfig());
-      if (action === "randomize") update(randomizedConfig());
-      if (action === "undo" && undoStack.length) restoreHistory(undoStack, redoStack);
-      if (action === "redo" && redoStack.length) restoreHistory(redoStack, undoStack);
-      if (action === "download-svg") downloadCoachSvg(config);
-      if (action === "download-png") downloadCoachPng(config);
+      if (action === "save" && dirty) {
+        config = saveCoachConfig(config);
+        dirty = false;
+        render();
+        window.dispatchEvent(new CustomEvent("speakup:coach-change", { detail: { config } }));
+      }
     });
     customizer.addEventListener("keydown", (event) => {
       const tab = event.target.closest("[data-coach-tab]");
@@ -8781,14 +8675,12 @@
     window.SpeakUpCoach = {
       getConfig: () => normalizeCoachConfig(config),
       setConfig(next) {
-        config = saveCoachConfig(normalizeCoachConfig(next));
+        config = normalizeCoachConfig(next);
+        dirty = false;
         render();
       }
     };
     render();
-  }
-  function pick(values) {
-    return values[Math.floor(Math.random() * values.length)];
   }
   function slug(value) {
     return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -8811,18 +8703,12 @@ lucide/dist/esm/shared/src/utils/toPascalCase.mjs:
 lucide/dist/esm/replaceElement.mjs:
 lucide/dist/esm/icons/badge.mjs:
 lucide/dist/esm/icons/check.mjs:
-lucide/dist/esm/icons/chevron-down.mjs:
-lucide/dist/esm/icons/download.mjs:
 lucide/dist/esm/icons/face-slightly-smiling.mjs:
 lucide/dist/esm/icons/glasses.mjs:
 lucide/dist/esm/icons/hat-glasses.mjs:
-lucide/dist/esm/icons/redo-2.mjs:
-lucide/dist/esm/icons/rotate-ccw.mjs:
 lucide/dist/esm/icons/scissors.mjs:
 lucide/dist/esm/icons/shirt.mjs:
-lucide/dist/esm/icons/shuffle.mjs:
 lucide/dist/esm/icons/sparkles.mjs:
-lucide/dist/esm/icons/undo-2.mjs:
 lucide/dist/esm/icons/users-round.mjs:
 lucide/dist/esm/lucide.mjs:
   (**

@@ -1,17 +1,11 @@
-import {
-  createIcons, UsersRound, Scissors, Smile, Glasses, Shirt, Badge, HatGlasses, Sparkles,
-  Shuffle, RotateCcw, Undo2, Redo2, Download, Check, ChevronDown
-} from "lucide";
-import { COACH_BASES, COACH_CATEGORIES, COACH_PALETTE, HAIR_DEFAULTS, coachOptionsFor } from "./catalog.js";
+import { createIcons, UsersRound, Scissors, Smile, Glasses, Shirt, Badge, HatGlasses, Sparkles, Check } from "lucide";
+import { COACH_CATEGORIES, COACH_PALETTE, HAIR_DEFAULTS, coachOptionsFor } from "./catalog.js";
 import { renderCoachSvg, coachSvgDataUri } from "./render.js";
-import { defaultCoachConfig, normalizeCoachConfig, readSavedCoachConfig, saveCoachConfig } from "./state.js";
-import { downloadCoachPng, downloadCoachSvg } from "./export.js";
+import { normalizeCoachConfig, readSavedCoachConfig, saveCoachConfig } from "./state.js";
 
 const iconSet = {
   "users-round": UsersRound, scissors: Scissors, smile: Smile, glasses: Glasses, shirt: Shirt,
-  badge: Badge, "hat-glasses": HatGlasses, sparkles: Sparkles, shuffle: Shuffle,
-  "rotate-ccw": RotateCcw, "undo-2": Undo2, "redo-2": Redo2, download: Download,
-  check: Check, "chevron-down": ChevronDown
+  badge: Badge, "hat-glasses": HatGlasses, sparkles: Sparkles, check: Check
 };
 const preview = document.querySelector("#profileMascot");
 const customizer = document.querySelector("#mascotCustomizer");
@@ -19,21 +13,12 @@ const customizer = document.querySelector("#mascotCustomizer");
 if (preview && customizer) {
   let config = readSavedCoachConfig();
   let activeTab = "base";
-  const undoStack = [];
-  const redoStack = [];
-  const maxHistory = 40;
+  let dirty = false;
 
-  function rememberChange() {
-    undoStack.push(JSON.stringify(config));
-    if (undoStack.length > maxHistory) undoStack.shift();
-    redoStack.length = 0;
-  }
-
-  function update(next, { remember = true } = {}) {
-    if (remember) rememberChange();
-    config = saveCoachConfig(normalizeCoachConfig(next));
+  function update(next) {
+    config = normalizeCoachConfig(next);
+    dirty = true;
     render();
-    window.dispatchEvent(new CustomEvent("speakup:coach-change", { detail: { config } }));
   }
 
   function applyChoice(path, value, target = config) {
@@ -68,7 +53,7 @@ if (preview && customizer) {
       let isSelected;
       if (accessory) {
         const chosen = config.accessories.includes(value);
-        sample = normalizeCoachConfig({ ...config, accessories: chosen ? config.accessories : [...config.accessories.slice(0, 2), value] });
+        sample = normalizeCoachConfig({ ...config, accessories: chosen ? config.accessories : [...config.accessories.filter((item) => item !== value).slice(0, 2), value] });
         isSelected = chosen;
       } else {
         sample = candidateFor(path, value);
@@ -149,10 +134,10 @@ if (preview && customizer) {
     if (tablist) tablist.innerHTML = renderTabs();
     const panel = customizer.querySelector(".coach-picker-panel");
     if (panel) panel.innerHTML = renderPanel();
-    const undo = customizer.querySelector('[data-action="undo"]');
-    const redo = customizer.querySelector('[data-action="redo"]');
-    if (undo) undo.disabled = undoStack.length === 0;
-    if (redo) redo.disabled = redoStack.length === 0;
+    const saveButton = customizer.querySelector('[data-action="save"]');
+    const saveStatus = customizer.querySelector("#coachSaveStatus");
+    if (saveButton) saveButton.disabled = !dirty;
+    if (saveStatus) saveStatus.textContent = dirty ? "Unsaved changes" : "All changes saved";
     const customCount = customizer.querySelector("#coachLookCount");
     if (customCount) customCount.textContent = `${config.accessories.length} ${config.accessories.length === 1 ? "extra" : "extras"}`;
     createIcons({ icons: iconSet, attrs: { class: "coach-icon", "aria-hidden": "true", focusable: "false" }, root: customizer });
@@ -206,12 +191,12 @@ if (preview && customizer) {
       return;
     }
     const action = event.target.closest("[data-action]")?.dataset.action;
-    if (action === "reset") update(defaultCoachConfig());
-    if (action === "randomize") update(randomizedConfig());
-    if (action === "undo" && undoStack.length) restoreHistory(undoStack, redoStack);
-    if (action === "redo" && redoStack.length) restoreHistory(redoStack, undoStack);
-    if (action === "download-svg") downloadCoachSvg(config);
-    if (action === "download-png") downloadCoachPng(config);
+    if (action === "save" && dirty) {
+      config = saveCoachConfig(config);
+      dirty = false;
+      render();
+      window.dispatchEvent(new CustomEvent("speakup:coach-change", { detail: { config } }));
+    }
   });
 
   customizer.addEventListener("keydown", (event) => {
@@ -233,44 +218,13 @@ if (preview && customizer) {
     options[next].click();
   });
 
-  function randomizedConfig() {
-    const base = pick(COACH_BASES);
-    const clothes = coachOptionsFor("clothes", base);
-    const extras = coachOptionsFor("extras", base).map((part) => part.id);
-    return normalizeCoachConfig({
-      ...config,
-      base,
-      skin: pick(COACH_PALETTE.skin),
-      hair: { style: pick(coachOptionsFor("hair", base)).id, color: pick(COACH_PALETTE.hair) },
-      glasses: { style: pick(coachOptionsFor("glasses").map((part) => part.id)), color: pick(COACH_PALETTE.glasses) },
-      top: { style: pick(clothes).id, color: pick(COACH_PALETTE.clothes), pattern: pick(["solid", "stripes", "checks", "dots"]) },
-      neck: { style: pick(coachOptionsFor("neckwear").map((part) => part.id)), color: pick(COACH_PALETTE.clothes) },
-      hat: { style: pick(coachOptionsFor("hats").map((part) => part.id)), color: pick(COACH_PALETTE.clothes) },
-      face: {
-        eyes: pick(coachOptionsFor("eyes").map((part) => part.id)),
-        mouth: pick(coachOptionsFor("mouth").map((part) => part.id)),
-        brows: pick(coachOptionsFor("brows").map((part) => part.id)),
-        facialHair: base === "man" ? pick(coachOptionsFor("facialHair", base).map((part) => part.id)) : "none"
-      },
-      accessories: [...new Set(Array.from({ length: Math.floor(Math.random() * 4) }, () => pick(extras)))]
-    });
-  }
-
-  function restoreHistory(from, to) {
-    to.push(JSON.stringify(config));
-    config = saveCoachConfig(normalizeCoachConfig(JSON.parse(from.pop())));
-    render();
-    window.dispatchEvent(new CustomEvent("speakup:coach-change", { detail: { config } }));
-  }
-
   window.SpeakUpCoach = {
     getConfig: () => normalizeCoachConfig(config),
-    setConfig(next) { config = saveCoachConfig(normalizeCoachConfig(next)); render(); }
+    setConfig(next) { config = normalizeCoachConfig(next); dirty = false; render(); }
   };
   render();
 }
 
-function pick(values) { return values[Math.floor(Math.random() * values.length)]; }
 function slug(value) { return value.toLowerCase().replace(/[^a-z0-9]+/g, ""); }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
 function colorName(color, index, total) { return `Color ${index + 1} of ${total}, ${color.toUpperCase()}`; }

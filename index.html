@@ -489,14 +489,14 @@
 
       <section class="screen page-screen profile-page" id="profile" data-page="profile" aria-labelledby="profileTitle">
         <header class="profile-page-heading">
-          <div><p class="kicker">Your SpeakUp space</p><h1 id="profileTitle">Build your corner</h1><p>Set a goal, customize your player avatar, and keep your progress moving.</p></div>
+          <div><p class="kicker">Your SpeakUp space</p><h1 id="profileTitle">Build your corner</h1></div>
           <div class="profile-account-actions"><span class="local-profile-badge" id="accountStatus"><span aria-hidden="true">●</span> Saved on this device</span><button class="button google-sign-in" id="googleSignIn" type="button"><span aria-hidden="true">G</span> Continue with Google</button><button class="button secondary google-sign-out" id="googleSignOut" type="button" hidden>Sign out</button></div>
         </header>
 
           <section class="coach-builder profile-card" id="mascotCustomizer" aria-labelledby="wardrobeTitle">
             <header class="coach-studio-header">
-              <div><p class="coach-eyebrow">Player avatar</p><h2 id="wardrobeTitle">Make your avatar yours</h2><p>Build a fresh look that feels like you.</p></div>
-              <div class="coach-save-indicator"><span aria-hidden="true"></span> Saves as you go</div>
+              <div><p class="coach-eyebrow">Player avatar</p><h2 id="wardrobeTitle">Make your avatar yours</h2></div>
+              <div class="coach-save-actions"><span id="coachSaveStatus" role="status" aria-live="polite">All changes saved</span><button class="coach-save-button" type="button" data-action="save" disabled>Save avatar</button></div>
             </header>
             <div class="coach-studio-body">
               <aside class="coach-preview-column" aria-label="Player avatar preview and actions">
@@ -504,14 +504,6 @@
                   <div class="coach-preview-topline"><span><i aria-hidden="true"></i> Live preview</span><span id="coachLookCount">0 extras</span></div>
                   <div class="coach-avatar-stage"><div class="profile-mascot" id="profileMascot" role="img" aria-label="Your young woman player avatar"></div></div>
                   <div class="profile-mascot-caption"><strong id="mascotName">Your player avatar</strong><span id="coachLookSummary">A look all your own</span></div>
-                </div>
-                <div class="coach-preview-actions" aria-label="Avatar actions">
-                  <button class="coach-action coach-action-primary" type="button" data-action="randomize"><i data-lucide="shuffle" aria-hidden="true"></i><span>Randomize</span></button>
-                  <button class="coach-action" type="button" data-action="reset"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reset</span></button>
-                  <button class="coach-action coach-action-icon" type="button" data-action="undo" disabled aria-label="Undo avatar change" title="Undo"><i data-lucide="undo-2" aria-hidden="true"></i></button>
-                  <button class="coach-action coach-action-icon" type="button" data-action="redo" disabled aria-label="Redo avatar change" title="Redo"><i data-lucide="redo-2" aria-hidden="true"></i></button>
-                  <button class="coach-action" type="button" data-action="download-png"><i data-lucide="download" aria-hidden="true"></i><span>PNG</span></button>
-                  <button class="coach-action" type="button" data-action="download-svg"><i data-lucide="download" aria-hidden="true"></i><span>SVG</span></button>
                 </div>
               </aside>
               <div class="coach-workbench">

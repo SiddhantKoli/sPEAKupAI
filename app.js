@@ -1695,7 +1695,6 @@ function loadProfile() {
 
 function saveProfile() {
   try {
-    if (window.SpeakUpCoach) state.profile.mascot = window.SpeakUpCoach.getConfig();
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(state.profile));
     window.SpeakUpFirebase?.saveProfile(state.profile).catch((error) => {
       if (el.profileSaveStatus) el.profileSaveStatus.textContent = `Saved on this device. Cloud save failed: ${error.message}`;
