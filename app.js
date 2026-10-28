@@ -272,7 +272,7 @@ const PROFILE_DEFAULTS = {
 const MASCOT_DEFAULTS = PROFILE_DEFAULTS.mascot;
 const PREP_SECONDS = 10;
 const PREP_RING = 2 * Math.PI * 52;
-const FLOW_PAGES = new Set(["tumbler", "prepare", "speaking", "processing", "interviewRoom"]);
+const FLOW_PAGES = new Set(["tumbler", "prepare", "speaking", "processing", "interviewAnalyzing", "interviewRoom"]);
 const fillerPatterns = [
   "um",
   "uh",
@@ -2186,7 +2186,7 @@ function abortFlow() {
 function showPage(pageName) {
   const aliases = { practice: "setup", login: "auth", signup: "auth" };
   const requested = aliases[pageName] || pageName;
-  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewRoom", "results", "progress", "history", "profile", "doodles", "auth"];
+  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewAnalyzing", "interviewRoom", "results", "progress", "history", "profile", "doodles", "auth"];
   let safePage = known.includes(requested) ? requested : "setup";
   if (document.body.classList.contains("auth-gate") && safePage !== "auth") {
     history.replaceState(null, "", "#auth");
@@ -2760,8 +2760,8 @@ function initSplashScreen() {
 
   function showFile(file) {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      window.alert("Please choose a resume smaller than 5 MB.");
+    if (file.size > 3 * 1024 * 1024) {
+      window.alert("Please choose a resume no larger than 3 MB so it can be uploaded reliably.");
       input.value = "";
       return;
     }
@@ -2854,12 +2854,14 @@ async function startInterviewSession() {
   };
   el.interviewFormError.hidden = true;
   if (!file) return fail("Choose a PDF or DOC/DOCX resume to personalize your interview.");
-  if (file.size > 5 * 1024 * 1024) return fail("Your resume must be 5 MB or smaller.");
+  if (file.size > 3 * 1024 * 1024) return fail("Your resume must be 3 MB or smaller so it fits the interview upload limit.");
   if (!/\.(pdf|docx)$/i.test(file.name)) return fail("Choose a PDF or DOCX resume.");
   if (!position || position.length > 120) return fail("Enter the position you’re interviewing for (up to 120 characters).");
 
   el.startInterview.disabled = true;
   el.startInterview.setAttribute("aria-busy", "true");
+  showPage("interviewAnalyzing");
+  let interviewCreated = false;
   try {
     const resumeData = arrayBufferToBase64(await file.arrayBuffer());
     const durationMinutes = Number(el.interviewDuration.value) || 20;
@@ -2893,13 +2895,15 @@ async function startInterviewSession() {
       transcriptionPromise: null,
       retryAction: "start"
     };
+    interviewCreated = true;
     await generateInterviewOpening();
   } catch (error) {
-    if (state.interview) {
+    if (interviewCreated && state.interview) {
       transitionInterview("error");
       showRoomError(error.message || "Could not read the selected resume.");
       showPage("interviewRoom");
     } else {
+      showPage("setup");
       fail("Could not read the selected resume. Choose it again and retry.");
     }
   } finally {
@@ -2921,7 +2925,10 @@ async function interviewRequest(path, payload, timeoutMs = 60000) {
       body: JSON.stringify({ ...payload, sessionId: interview.sessionId }), signal: controller.signal
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || `Interview service returned ${response.status}.`);
+    if (!response.ok) {
+      if (response.status === 413) throw new Error("This resume is too large for the interview service. Choose a PDF or DOCX under 3 MB and try again.");
+      throw new Error(result.error || `Interview service returned ${response.status}.`);
+    }
     return result;
   } catch (error) {
     if (error.name === "AbortError") throw new Error("The interview service took too long to respond. Your answer is saved here; try again.");
@@ -2936,8 +2943,9 @@ async function generateInterviewOpening() {
   const interview = state.interview;
   if (!interview || !transitionInterview("generating_question")) return;
   interview.retryAction = "start";
-  showPage("interviewRoom");
-  setRoomBusy("Preparing your first question…");
+  el.roomError.hidden = true;
+  el.roomError.textContent = "";
+  showPage("interviewAnalyzing");
   const promise = interviewRequest("/api/interview/start", {
     config: interview.config,
     resume: interview.resume
@@ -2955,6 +2963,7 @@ async function generateInterviewOpening() {
     interview.questionNumber = 1;
     interview.startedAt = Date.now();
     startInterviewElapsedTimer();
+    showPage("interviewRoom");
     transitionInterview("asking_question");
     persistInterviewDraft();
     renderInterviewRoom();
@@ -2962,6 +2971,7 @@ async function generateInterviewOpening() {
     if (state.interview !== interview || interview.status === "interview_complete") return;
     interview.retryAction = "start";
     transitionInterview("error");
+    showPage("interviewRoom");
     showRoomError(error.message || "Could not prepare the interview question.");
   } finally {
     interview.requestPromise = null;
@@ -3245,13 +3255,6 @@ function showRoomError(message) {
   if (!el.roomError) return;
   el.roomError.textContent = message;
   el.roomError.hidden = false;
-}
-
-function setRoomBusy(message) {
-  el.roomStateLabel.textContent = message;
-  el.roomQuestion.textContent = "Preparing your interview…";
-  el.roomInstruction.textContent = "The interviewer is reviewing your setup.";
-  renderInterviewRoom();
 }
 
 function renderInterviewRoom() {

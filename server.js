@@ -235,7 +235,7 @@ function validateResume(resume) {
   const data = resume.data.replace(/^data:[^,]+,/, "");
   if (!/^[a-z0-9+/]+={0,2}$/i.test(data)) throw new Error("Resume data could not be read. Please choose the file again.");
   const bytes = Buffer.from(data, "base64");
-  if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new Error("Resume must be a valid file no larger than 5 MB.");
+  if (!bytes.length || bytes.length > 3 * 1024 * 1024) throw new Error("Resume must be a valid file no larger than 3 MB so it fits the interview upload limit.");
   if (/\.pdf$/i.test(resume.name) && bytes.toString("ascii", 0, 4) !== "%PDF") throw new Error("The selected file is not a readable PDF.");
   if (/\.docx$/i.test(resume.name) && bytes.readUInt32LE(0) !== 0x04034b50) throw new Error("The selected DOCX file is not a valid Word document.");
   return { name: path.basename(String(resume.name)).slice(0, 180), mimeType: String(resume.mimeType || "application/octet-stream").slice(0, 100), data: bytes.toString("base64") };

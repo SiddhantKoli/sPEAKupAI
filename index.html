@@ -21,7 +21,7 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=profile-doodle-20261028">
+    <link rel="stylesheet" href="./styles.css?v=interview-analysis-bar-20261028">
     <link rel="stylesheet" href="./coach/coach.css?v=big-doodle-gallery-20261028">
     <link rel="stylesheet" href="./comic-theme.css?v=local-fonts-20261028">
     <noscript>
@@ -161,7 +161,7 @@
                 <label class="interview-label" for="resumeFile">YOUR RESUME</label>
                 <label class="resume-drop" for="resumeFile">
                   <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 22H6a5 5 0 0 1 0-10 8 8 0 0 1 15-2 6 6 0 0 1 2 12h-1M16 28V15m-5 5 5-5 5 5"/></svg>
-                  <span><span id="resumeFileName">Click to upload or drag and drop</span><small>PDF, DOCX (Max 5MB)</small></span>
+                  <span><span id="resumeFileName">Click to upload or drag and drop</span><small>PDF, DOCX (Max 3 MB)</small></span>
                   <input id="resumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
                 </label>
                 <label class="interview-label position-label" for="interviewPosition">POSITION YOU’RE INTERVIEWING FOR</label>
@@ -286,6 +286,17 @@
           <div class="transcribe-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="transcribeMeter">
             <div class="transcribe-meter-fill" id="transcribeMeterFill"></div>
           </div>
+        </div>
+      </section>
+
+      <section class="screen flow-screen interview-analysis-screen" id="interviewAnalyzing" data-page="interviewAnalyzing" aria-labelledby="interviewAnalysisTitle" aria-live="polite">
+        <div class="interview-analysis-card">
+          <span class="interview-analysis-mark" aria-hidden="true">✦</span>
+          <p class="kicker">Interview setup</p>
+          <h1 id="interviewAnalysisTitle">Analyzing your resume</h1>
+          <p class="interview-analysis-copy">We’re reviewing your experience and tailoring your first interview question.</p>
+          <div class="interview-analysis-track" role="progressbar" aria-label="Analyzing your resume and preparing your first interview question" aria-valuemin="0" aria-valuemax="100"><span></span></div>
+          <span class="interview-analysis-hint">This can take a few moments</span>
         </div>
       </section>
 
@@ -561,7 +572,7 @@
     <div id="printSheet" aria-hidden="true"></div>
 
     <script src="./mode-shift.js?v=mode-story-20261024"></script>
-    <script src="./app.js?v=curated-doodles-20261028"></script>
+    <script src="./app.js?v=interview-analysis-20261028"></script>
     <script src="./firebase-auth.bundle.js?v=firebase-standalone-20261020" onerror="window.dispatchEvent(new CustomEvent('speakup:firebase-load-error', { detail: { error: new Error('The local Firebase script could not be loaded.') } }))"></script>
     <script src="./coach/coach.bundle.js?v=curated-doodles-20261028" defer></script>
   </body>
