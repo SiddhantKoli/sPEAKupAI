@@ -478,7 +478,7 @@ async function transcribeAudio(request, response) {
     if (!apiKey) {
       sendJson(response, 503, {
         code: "no_api_key",
-        error: "No transcription key is configured. Add GEMINI_API_KEY or OPENAI_API_KEY to .env, then restart the server."
+        error: "No transcription key is configured. Add GEMINI_API_KEY or OPENAI_API_KEY under the deployment's environment variables, then redeploy."
       });
       return;
     }

@@ -1273,24 +1273,29 @@ async function transcribeRecordedAudio(autoEvaluate) {
       },
       body: state.audioBlob
     });
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       if (result.code === "no_api_key") {
         if (previewTranscript) {
           el.transcript.value = previewTranscript;
           if (el.scoreSummary) {
-            el.scoreSummary.textContent = "Using the browser's speech-recognition transcript. Add GEMINI_API_KEY or OPENAI_API_KEY to .env for higher-accuracy cloud transcription.";
+            el.scoreSummary.textContent = "Using your browser’s speech-recognition transcript. For cloud transcription, this deployment needs GEMINI_API_KEY or OPENAI_API_KEY in its environment settings.";
           }
         } else {
           el.transcript.value = "";
           if (el.scoreSummary) {
-            el.scoreSummary.textContent = "No speech was recognized. The browser's speech service captured nothing — add GEMINI_API_KEY or OPENAI_API_KEY to .env for cloud transcription, or record in Chrome/Edge with the microphone allowed.";
+            el.scoreSummary.textContent = "No speech was recognized. Allow microphone access and try again, or configure GEMINI_API_KEY or OPENAI_API_KEY in the deployment environment for cloud transcription.";
           }
         }
       } else {
-        if (el.scoreSummary) el.scoreSummary.textContent = result.error || "Transcription failed.";
-        el.transcript.value = previewTranscript || `[${result.error || "Transcription failed."}]`;
+        const message = response.status === 413
+          ? "This recording is too large for Vercel’s 4.5 MB upload limit. Try a shorter take."
+          : response.status === 504
+            ? "Transcription timed out on the hosting service. Try a shorter take, then retry."
+            : result.error || `Transcription service returned ${response.status}.`;
+        if (el.scoreSummary) el.scoreSummary.textContent = message;
+        el.transcript.value = previewTranscript || `[${message}]`;
       }
     } else {
       const text = (result.text || "").trim();
@@ -1302,8 +1307,8 @@ async function transcribeRecordedAudio(autoEvaluate) {
       }
     }
   } catch (error) {
-    if (el.scoreSummary) el.scoreSummary.textContent = "Could not reach the transcription service. Is the server running?";
-    el.transcript.value = previewTranscript || "[Could not reach the transcription service. Keep node server.js running.]";
+    if (el.scoreSummary) el.scoreSummary.textContent = "Could not reach the transcription service. Check the deployment API logs and transcription key.";
+    el.transcript.value = previewTranscript || "[Could not reach the transcription service. Check the deployment API logs and transcription key.]";
   } finally {
     stopTranscribeProgress(true);
     el.recordingState.textContent = "Ready";
@@ -3120,7 +3125,13 @@ async function transcribeInterviewAudio() {
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok) transcript = String(result.text || "").trim();
-      else if (result.code !== "no_api_key") errorMessage = result.error || "Transcription service failed.";
+      else if (result.code !== "no_api_key") {
+        errorMessage = response.status === 413
+          ? "This recording is too large for Vercel’s 4.5 MB upload limit. Try a shorter take."
+          : response.status === 504
+            ? "Transcription timed out on the hosting service. Try a shorter take."
+            : result.error || `Transcription service returned ${response.status}.`;
+      }
     } catch (error) {
       if (state.interview !== interview || interview.status !== "transcribing") return;
       errorMessage = "Could not reach transcription. Your live transcript is still available to review.";
