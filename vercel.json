@@ -80,6 +80,14 @@
     {
       "src": "coach/coach.css",
       "use": "@vercel/static"
+    },
+    {
+      "src": "assets/fonts/Inter-Variable-latin.woff2",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/fonts/BebasNeue-Regular-latin.woff2",
+      "use": "@vercel/static"
     }
   ],
   "routes": [

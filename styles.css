@@ -127,7 +127,7 @@ h3,
 .splash-tagline,
 .choice-card,
 .start-btn {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0;
@@ -435,7 +435,7 @@ body.flow-active main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(2.3rem, 5.2vw, 3.8rem);
   font-weight: 900;
   text-transform: uppercase;
@@ -483,7 +483,7 @@ html[data-theme="dark"] .front-brand:active {
 
 .setup-subtitle {
   margin: 0 0 4px;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(1.4rem, 2.7vw, 1.95rem);
   line-height: 1.1;
   text-transform: uppercase;
@@ -764,7 +764,7 @@ button:focus-visible,
   justify-content: center;
   text-align: center;
   padding: 0 24px;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   text-transform: uppercase;
   font-size: clamp(1.15rem, 4.2vw, 1.75rem);
   line-height: 1.1;
@@ -837,7 +837,7 @@ button:focus-visible,
 }
 
 .topic {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   text-transform: uppercase;
   font-size: clamp(1.6rem, 5.5vw, 2.7rem);
   line-height: 1.1;
@@ -847,7 +847,7 @@ button:focus-visible,
 }
 
 .big.count {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(6.5rem, 26vw, 11rem);
   line-height: 1;
   margin: 4px 0 12px;
@@ -892,7 +892,7 @@ button:focus-visible,
 .topic-reminder {
   margin: 0;
   max-width: 18ch;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(1.8rem, 6vw, 3.6rem);
   line-height: 1.05;
   text-transform: uppercase;
@@ -980,7 +980,7 @@ html[data-theme="dark"] .danger {
 }
 
 .transcribe-progress-copy strong {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 1.5rem;
   text-transform: uppercase;
 }
@@ -1818,7 +1818,7 @@ body.splash-active {
   background: var(--soft-2);
   border: 3px solid var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(16px, 3.4vw, 28px);
   letter-spacing: 0;
   text-transform: uppercase;
@@ -2022,7 +2022,7 @@ main {
 
   #printSheet h3 {
     margin: 0 0 8px;
-    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+    font-family: "Bebas Neue", sans-serif;
     font-weight: 400;
     font-size: 16px;
     text-transform: uppercase;
@@ -2100,7 +2100,7 @@ main {
 
   .print-overall strong {
     display: block;
-    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+    font-family: "Bebas Neue", sans-serif;
     font-size: 60px;
     line-height: 1;
   }
@@ -2725,11 +2725,11 @@ html[data-side="interview"] .interview-heading .front-brand-wrap { margin-bottom
 html[data-side="interview"] .interview-heading .front-brand {
   background: #ff1f3d; color: #fff; border: 3px solid var(--ink); border-radius: 10px;
   box-shadow: 6px 6px 0 var(--ink); text-shadow: 1px 1px 0 rgba(0,0,0,.2);
-  padding: 6px 28px; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  padding: 6px 28px; font-family: "Bebas Neue", sans-serif;
   font-size: clamp(2.2rem, 5vw, 3.8rem); font-weight: 900; letter-spacing: .025em;
 }
 html[data-side="interview"] .interview-heading .setup-subtitle {
-  margin: 0 0 14px; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  margin: 0 0 14px; font-family: "Bebas Neue", sans-serif;
   font-size: clamp(1.7rem, 3.3vw, 2.6rem); font-weight: 900; letter-spacing: .04em;
 }
 html[data-side="interview"] .interview-heading .setup-lead { max-width: 40rem; margin-bottom: 0; font-size: .95rem; }
@@ -3096,7 +3096,7 @@ body.shifting { overflow: hidden; }
   position: absolute;
   left: -120px;
   white-space: nowrap;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   line-height: 0.9;
@@ -3131,7 +3131,7 @@ body.shifting { overflow: hidden; }
 .ms-cap { position: absolute; left: 50%; top: 0; margin: 0; padding: 8px 18px; white-space: nowrap; opacity: 0; transform: translateX(-50%); will-change: transform, opacity; }
 :is(.to-int .ms-cap-a, .to-cas .ms-cap-b) {
   background: #ffe600; color: #0a0a0a; border: 3px solid var(--ink, #141b2b); box-shadow: 4px 4px 0 var(--ink, #141b2b);
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; text-transform: uppercase; letter-spacing: 0.03em; font-size: clamp(16px, 3.4vw, 26px);
+  font-family: "Bebas Neue", sans-serif; text-transform: uppercase; letter-spacing: 0.03em; font-size: clamp(16px, 3.4vw, 26px);
 }
 :is(.to-int .ms-cap-b, .to-cas .ms-cap-a) {
   background: #ffffff; color: #0b1f3a; border: 1.5px solid #0b1f3a; border-radius: 8px; box-shadow: 0 8px 24px rgba(11, 31, 58, 0.14);
@@ -3191,13 +3191,13 @@ body.shifting { overflow: hidden; }
 .profile-form .button { margin-top:5px; }
 .profile-save-status { margin:0;color:#53647b;font-size:.75rem;line-height:1.45; }
 .profile-main-column { display:grid;gap:18px; }
-.goal-card h2,.streak-card h2 { margin:0;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:1.55rem;text-transform:none; }
+.goal-card h2,.streak-card h2 { margin:0;font-family:"Bebas Neue", sans-serif;font-size:1.55rem;text-transform:none; }
 .goal-card .kicker,.streak-card .kicker { margin:0 0 5px; }
 .goal-card { background:#141b2b;color:#fff; }
 .goal-card .kicker { color:#ffe600; }
 .goal-card-top { display:flex;align-items:center;justify-content:space-between;gap:14px; }
 .goal-score { display:grid;justify-items:end; }
-.goal-score strong { color:#ffe600;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:2.6rem;line-height:.9; }
+.goal-score strong { color:#ffe600;font-family:"Bebas Neue", sans-serif;font-size:2.6rem;line-height:.9; }
 .goal-score span { color:#d1d8e2;font-size:.72rem; }
 .goal-track { height:11px;margin:17px 0 13px;overflow:hidden;border:1px solid #78859a;border-radius:999px;background:#303b4d; }
 .goal-track span { display:block;width:0;height:100%;background:#ffe600;transition:width .35s ease; }
@@ -3212,7 +3212,7 @@ body.shifting { overflow: hidden; }
 .streak-flame { flex:none;display:grid;width:48px;height:48px;place-items:center;border:2px solid #141b2b;background:#ffe600;color:#141b2b;font-size:1.6rem;box-shadow:3px 3px 0 #141b2b;transform:rotate(-5deg); }
 .streak-card .kicker { color:#ffe600; }
 .streak-card h2 { font-size:1.4rem; }
-.streak-card h2 span { color:#ffe600;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:2rem; }
+.streak-card h2 span { color:#ffe600;font-family:"Bebas Neue", sans-serif;font-size:2rem; }
 .streak-card p:last-child { margin:6px 0 0;color:#d5deea;font-size:.76rem;line-height:1.4; }
 .streak-best { display:grid;gap:3px;margin-left:auto;text-align:right; }
 .streak-best span { color:#d5deea;font-size:.66rem; }
@@ -3245,7 +3245,7 @@ body.shifting { overflow: hidden; }
 .auth-brand img { width:42px;height:42px;padding:6px;border:2px solid #141b2b;border-radius:9px;background:#fff; }
 .auth-comic-copy { position:relative;z-index:1;margin-top:clamp(38px,8vh,82px);max-width:460px; }
 .auth-sticker { display:inline-block;padding:7px 10px;transform:rotate(-2deg);border:2px solid #141b2b;background:#dc2c4f;color:white;font-family:"Courier New",monospace;font-size:.7rem;font-weight:900;letter-spacing:.08em;box-shadow:3px 3px 0 #141b2b; }
-.auth-comic-copy h1 { margin:19px 0 13px;color:white;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:clamp(3.5rem,7vw,6.4rem);font-stretch:condensed;line-height:.84;letter-spacing:-.035em;text-shadow:4px 4px 0 #141b2b; }
+.auth-comic-copy h1 { margin:19px 0 13px;color:white;font-family:"Bebas Neue", sans-serif;font-size:clamp(3.5rem,7vw,6.4rem);font-stretch:condensed;line-height:.84;letter-spacing:-.035em;text-shadow:4px 4px 0 #141b2b; }
 .auth-comic-copy p { max-width:33ch;margin:0;color:#edf5ff;font-size:1rem;font-weight:650;line-height:1.55; }
 .auth-coach-art { position:absolute;right:8%;bottom:2%;width:min(45%,290px);height:auto;filter:drop-shadow(5px 6px 0 #141b2b); }
 .auth-speech-bubble { position:absolute;right:43%;bottom:12%;z-index:2;max-width:180px;padding:11px 14px;border:2px solid #141b2b;border-radius:6px;background:#fffefd;color:#141b2b;font-family:Georgia,"Times New Roman",serif;font-size:.94rem;font-weight:800;line-height:1.15;transform:rotate(-4deg);box-shadow:3px 3px 0 #141b2b; }
@@ -3253,7 +3253,7 @@ body.shifting { overflow: hidden; }
 .auth-panel-corner { position:absolute;left:-48px;bottom:-65px;width:200px;height:175px;border:3px solid #141b2b;background:#dc2c4f;clip-path:polygon(0 0,100% 40%,76% 100%,0 100%);z-index:-1; }
 .auth-form-panel { display:flex;flex-direction:column;justify-content:center;min-width:0;padding:clamp(26px,4vw,54px);background:var(--paper);color:var(--ink); }
 .auth-form-heading .kicker { margin:0 0 9px;color:#0759bd;font-size:.68rem; }
-.auth-form-heading h2 { margin:0;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:clamp(2rem,3.2vw,3rem);line-height:.98;letter-spacing:-.015em;text-transform:none; }
+.auth-form-heading h2 { margin:0;font-family:"Bebas Neue", sans-serif;font-size:clamp(2rem,3.2vw,3rem);line-height:.98;letter-spacing:-.015em;text-transform:none; }
 .auth-form-heading > p:last-child { margin:9px 0 21px;color:var(--muted);font-size:.88rem;line-height:1.5; }
 .auth-tabs { display:grid;grid-template-columns:1fr 1fr;margin:0 0 17px;border-bottom:2px solid var(--ink); }
 .auth-tabs button { position:relative;min-height:42px;border:0;background:transparent;color:var(--muted);font-size:.8rem;font-weight:850; }

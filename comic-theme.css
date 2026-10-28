@@ -1,3 +1,20 @@
+/* Locally served fonts keep typography consistent on mobile and desktop. */
+@font-face {
+  font-family: Inter;
+  src: url("./assets/fonts/Inter-Variable-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("./assets/fonts/BebasNeue-Regular-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* SpeakUp comic-book system: paper, ink and three deliberate accent colors. */
 :root {
   --ink: #111111;
@@ -64,7 +81,7 @@ html[data-side="interview"][data-theme="dark"] {
 html, body { background: var(--background); }
 html[data-side="interview"] body { background-color: var(--background); background-image: radial-gradient(circle, var(--dot) 1.5px, transparent 1.8px); background-size: 22px 22px; }
 body :is(h1, h2, h3, .brand-name, .choice-card, .choice-chip, .start-btn, .button, .site-ticker, .setup-subtitle) {
-  font-family: "Bebas Neue", Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-weight: 400;
   letter-spacing: .025em;
 }
@@ -101,7 +118,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: .9rem;
   letter-spacing: .02em;
 }
@@ -121,7 +138,7 @@ body {
   border-bottom: 4px solid var(--ink);
   background: var(--red);
   color: #111;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(.82rem, 1.3vw, 1.08rem);
   white-space: nowrap;
 }
@@ -178,7 +195,7 @@ body.flow-active main { padding: 0; }
   z-index: 0;
   color: color-mix(in srgb, var(--muted) 11%, transparent);
   content: "01";
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 8rem;
   line-height: 1;
   pointer-events: none;
@@ -194,7 +211,7 @@ body.flow-active main { padding: 0; }
   padding: 0 0 10px;
   border-bottom: 4px solid var(--ink);
   color: var(--ink);
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: clamp(1.45rem, 2.1vw, 2rem);
   text-transform: uppercase;
 }
@@ -256,7 +273,7 @@ html[data-side="interview"] .setup-inner { display: block; padding-top: 20px; te
   box-shadow: 7px 7px 0 var(--ink);
 }
 .interview-prompt { background: var(--soft-2); }
-.interview-prompt h3 { color: var(--ink); font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; font-size: 1.4rem; }
+.interview-prompt h3 { color: var(--ink); font-family: "Bebas Neue", sans-serif; font-size: 1.4rem; }
 .interview-prompt p { color: var(--muted); }
 .resume-illustration svg { stroke: var(--ink); }
 .interview-fields { border-color: color-mix(in srgb, var(--ink) 25%, transparent); }
@@ -332,7 +349,7 @@ html[data-side="interview"] .report .report-meta li { border-radius: 0; border: 
 .profile-layout { gap: 18px; }
 .profile-card { padding: 22px; }
 .profile-identity { background: var(--soft-2); color: #111; }
-.profile-summary h2 { font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; text-transform: uppercase; }
+.profile-summary h2 { font-family: "Bebas Neue", sans-serif; text-transform: uppercase; }
 .profile-form input, .profile-form select, .auth-form input, .room-transcript textarea {
   border: 3px solid var(--ink);
   border-radius: 0;
@@ -369,7 +386,7 @@ html[data-side="interview"] .report .report-meta li { border-radius: 0; border: 
 .room-waveform span:nth-child(2n) { background: var(--soft-2) !important; }
 .room-waveform span:nth-child(3n) { background: var(--red) !important; }
 .room-transcript { margin-top: 20px; padding: 18px; border: 3px solid var(--ink); background: var(--paper); box-shadow: 5px 5px 0 var(--ink); }
-.room-transcript-heading h2 { margin: 0; font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; font-size: 1.2rem; text-transform: uppercase; }
+.room-transcript-heading h2 { margin: 0; font-family: "Bebas Neue", sans-serif; font-size: 1.2rem; text-transform: uppercase; }
 .room-history { margin-top: 20px; padding: 14px 16px; border: 3px solid var(--ink); background: var(--paper); box-shadow: 4px 4px 0 var(--ink); }
 .room-turn { border-bottom: 2px dashed color-mix(in srgb, var(--ink) 30%, transparent); }
 .room-error { border: 3px solid var(--ink); border-left-width: 8px; border-left-color: var(--red); border-radius: 0; box-shadow: 4px 4px 0 var(--ink); }

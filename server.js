@@ -14,7 +14,8 @@ const types = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".mp3": "audio/mpeg",
-  ".webp": "image/webp"
+  ".webp": "image/webp",
+  ".woff2": "font/woff2"
 };
 
 const server = http.createServer(handleRequest);
