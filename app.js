@@ -334,11 +334,6 @@ const el = {
   mode: document.querySelector("#mode"),
   difficulty: document.querySelector("#difficulty"),
   duration: document.querySelector("#duration"),
-  durationGroup: document.querySelector("#durationGroup"),
-  customTimerGroup: document.querySelector("#customTimerGroup"),
-  customComplexityGroup: document.querySelector("#customComplexityGroup"),
-  customSeconds: document.querySelector("#customSeconds"),
-  customComplexity: document.querySelector("#customComplexity"),
   startSession: document.querySelector("#startSession"),
   setup: document.querySelector("#setup"),
   interviewRoom: document.querySelector("#interviewRoom"),
@@ -466,39 +461,19 @@ function pick(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function syncCustomControls() {
-  const custom = isCustomDifficulty();
-  if (el.durationGroup) el.durationGroup.hidden = custom;
-  if (el.customTimerGroup) el.customTimerGroup.hidden = !custom;
-  if (el.customComplexityGroup) el.customComplexityGroup.hidden = !custom;
-}
-
-function isCustomDifficulty() {
-  return el.difficulty.value === "custom";
-}
-
-function clampCustomSeconds() {
-  let value = Number(el.customSeconds.value);
-  if (!Number.isFinite(value)) value = 75;
-  value = Math.round(Math.min(600, Math.max(15, value)));
-  el.customSeconds.value = value;
-  return value;
-}
-
 function effectiveDifficulty() {
-  return isCustomDifficulty() ? el.customComplexity.value : el.difficulty.value;
+  return el.difficulty.value;
 }
 
 function effectiveDuration() {
-  return isCustomDifficulty() ? clampCustomSeconds() : Number(el.duration.value);
+  return Number(el.duration.value);
 }
 
 function setupReady() {
-  return Boolean(el.mode.value && el.difficulty.value && (isCustomDifficulty() || el.duration.value));
+  return Boolean(el.mode.value && el.difficulty.value && el.duration.value);
 }
 
 function syncStartButton() {
-  syncCustomControls();
   el.startSession.disabled = !setupReady();
 }
 
@@ -528,14 +503,13 @@ function setDuration(value) {
 
 function generateChallenge(forceMode, forceDifficulty) {
   const mode = forceMode || el.mode.value;
-  const custom = !forceMode && isCustomDifficulty();
-  const difficulty = forceDifficulty || (custom ? el.customComplexity.value : el.difficulty.value);
+  const difficulty = forceDifficulty || el.difficulty.value;
   const duration = effectiveDuration();
   const text = pick(prompts[mode][difficulty]);
 
   state.challenge = {
     mode,
-    difficulty: custom ? "Custom" : difficulty,
+    difficulty,
     duration,
     text,
     label: prompts[mode].label
@@ -543,7 +517,6 @@ function generateChallenge(forceMode, forceDifficulty) {
   state.remaining = duration;
   el.timer.textContent = formatTime(duration);
   setTopicDisplays(text);
-  syncCustomControls();
 }
 
 function setTopicDisplays(text) {
@@ -756,6 +729,124 @@ function playStartChime() {
       osc.stop(now + decays[idx] + 0.05);
     });
   } catch {}
+}
+
+// 4. Digital click sound effect for home screen buttons (practice & interview modes)
+let digitalClickBuffer = null;
+let digitalClickFetching = false;
+let digitalClickRawBuffer = null;
+let digitalClickDecodePromise = null;
+let digitalClickStartOffset = 0;
+let lastClickSoundTime = 0;
+
+function findDigitalClickStartOffset(buffer) {
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
+  let peak = 0;
+  for (const channel of channels) {
+    for (let index = 0; index < channel.length; index += 1) peak = Math.max(peak, Math.abs(channel[index]));
+  }
+  if (!peak) return 0;
+
+  const threshold = Math.max(0.006, peak * 0.035);
+  const requiredRun = Math.max(1, Math.round(buffer.sampleRate * 0.0025));
+  let runStart = -1;
+  let runLength = 0;
+  const frameCount = Math.min(...channels.map((channel) => channel.length));
+  for (let index = 0; index < frameCount; index += 1) {
+    const audible = channels.some((channel) => Math.abs(channel[index]) >= threshold);
+    if (audible) {
+      if (runStart < 0) runStart = index;
+      runLength += 1;
+      if (runLength >= requiredRun) return Math.max(0, runStart / buffer.sampleRate - 0.006);
+    } else {
+      runStart = -1;
+      runLength = 0;
+    }
+  }
+  return 0;
+}
+
+function decodeDigitalClickAudio(ctx = getSfxContext()) {
+  if (digitalClickBuffer || !digitalClickRawBuffer || !ctx) return Promise.resolve(digitalClickBuffer);
+  if (digitalClickDecodePromise) return digitalClickDecodePromise;
+  digitalClickDecodePromise = ctx.decodeAudioData(digitalClickRawBuffer.slice(0))
+    .then((decoded) => {
+      digitalClickBuffer = decoded;
+      digitalClickStartOffset = findDigitalClickStartOffset(decoded);
+      return decoded;
+    })
+    .catch((error) => {
+      digitalClickDecodePromise = null;
+      throw error;
+    });
+  return digitalClickDecodePromise;
+}
+
+function playDigitalClickBuffer(ctx) {
+  if (!digitalClickBuffer) return;
+  const source = ctx.createBufferSource();
+  source.buffer = digitalClickBuffer;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.75, ctx.currentTime);
+  source.connect(gain);
+  gain.connect(ctx.destination);
+  source.start(0, digitalClickStartOffset);
+}
+
+function loadDigitalClickSound() {
+  if (digitalClickBuffer || digitalClickFetching) return;
+  digitalClickFetching = true;
+  fetch("./ksjsbwuil-digital-click-3-513897.mp3")
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.arrayBuffer();
+    })
+    .then((arrayBuffer) => {
+      digitalClickRawBuffer = arrayBuffer;
+      const ctx = getSfxContext();
+      if (ctx) return decodeDigitalClickAudio(ctx);
+    })
+    .catch((err) => {
+      console.warn("Digital click audio could not be preloaded:", err);
+    })
+    .finally(() => {
+      digitalClickFetching = false;
+    });
+}
+
+function playButtonClickSound() {
+  const now = performance.now();
+  if (now - lastClickSoundTime < 30) return;
+  lastClickSoundTime = now;
+
+  try {
+    const ctx = getSfxContext();
+    if (ctx) {
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+      if (digitalClickBuffer) {
+        playDigitalClickBuffer(ctx);
+        return;
+      } else if (digitalClickRawBuffer) {
+        decodeDigitalClickAudio(ctx).then(() => playDigitalClickBuffer(ctx)).catch(() => {});
+        return;
+      } else {
+        loadDigitalClickSound();
+      }
+    }
+  } catch {}
+
+  try {
+    const audio = new Audio("./ksjsbwuil-digital-click-3-513897.mp3");
+    audio.volume = 0.75;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
+function isHomeScreenActive() {
+  const setupEl = document.getElementById("setup");
+  return Boolean(setupEl && setupEl.classList.contains("active"));
 }
 
 // ==========================================
@@ -2168,6 +2259,7 @@ function bindChoiceGroup(selector, onPick) {
       const next = buttons[(index + delta + buttons.length) % buttons.length];
       next.focus();
       onPick(next);
+      if (isHomeScreenActive()) playButtonClickSound();
     });
   });
 }
@@ -2396,8 +2488,6 @@ el.profileForm?.addEventListener("submit", (event) => {
   if (saved && el.profileSaveStatus) el.profileSaveStatus.textContent = "Saved on this device. Your next session counts toward your goal.";
   renderProfile();
 });
-el.customSeconds.addEventListener("change", syncStartButton);
-el.customComplexity.addEventListener("change", syncStartButton);
 el.themeToggle.addEventListener("click", toggleTheme);
 el.exportPdf.addEventListener("click", () => {
   if (state.activeResult) printReport(state.activeResult);
@@ -2508,6 +2598,7 @@ function initSplashScreen() {
 
   function startCharge() {
     if (shifting || charging || inInterview()) return;
+    if (isHomeScreenActive()) playButtonClickSound();
     charging = true;
     startedAt = performance.now();
     btn.classList.add("charging");
@@ -3359,3 +3450,38 @@ window.addEventListener("beforeunload", (event) => {
     event.returnValue = "";
   }
 });
+
+// ==========================================
+// Home Screen Button Click Sound Listener (Practice & Interview Modes)
+// ==========================================
+(function initHomeScreenButtonClickSound() {
+  loadDigitalClickSound();
+
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      const ctx = getSfxContext();
+      if (ctx && digitalClickRawBuffer && !digitalClickBuffer) {
+        decodeDigitalClickAudio(ctx).catch(() => {});
+      }
+    },
+    { once: true, passive: true }
+  );
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!isHomeScreenActive()) return;
+      if (event.target.tagName === "INPUT") return;
+
+      const btn = event.target.closest("button, [role='button'], .choice-card, .choice-chip, .resume-drop, .button, .icon-button");
+      if (!btn) return;
+
+      if (btn.closest("#setup") || btn.id === "modeSwitch" || btn.id === "themeToggle") {
+        playButtonClickSound();
+      }
+    },
+    true
+  );
+})();
+

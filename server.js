@@ -12,7 +12,9 @@ const types = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".png": "image/png",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".mp3": "audio/mpeg",
+  ".webp": "image/webp"
 };
 
 const server = http.createServer(handleRequest);

@@ -18,6 +18,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "comic-theme.css",
+      "use": "@vercel/static"
+    },
+    {
       "src": "logo.png",
       "use": "@vercel/static"
     },
@@ -31,6 +35,10 @@
     },
     {
       "src": "mode-shift.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "ksjsbwuil-digital-click-3-513897.mp3",
       "use": "@vercel/static"
     },
     {

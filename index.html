@@ -7,7 +7,8 @@
     <link rel="icon" type="image/svg+xml" href="./speakup-logo-on-light.svg" id="siteIcon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="./ksjsbwuil-digital-click-3-513897.mp3" as="fetch" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
       (function () {
         try {
@@ -23,6 +24,7 @@
     </script>
     <link rel="stylesheet" href="./styles.css?v=player-avatar-20261020">
     <link rel="stylesheet" href="./coach/coach.css?v=player-avatar-20261020">
+    <link rel="stylesheet" href="./comic-theme.css?v=comic-system-20261028">
     <noscript>
       <style>
         #splashScreen { display: none !important; }
@@ -134,6 +136,13 @@
       </div>
     </header>
 
+    <div class="site-ticker" aria-hidden="true">
+      <div class="site-ticker-track">
+        <div class="site-ticker-group"><span>✦ NO FEAR</span><b>★</b><span>PRACTICE ROUND</span><b>ϟ</b><span>TALK LOUD</span><b>✦</b><span>BAM!</span><b>★</b><span>SPEAK UP</span><b>ϟ</b></div>
+        <div class="site-ticker-group"><span>✦ NO FEAR</span><b>★</b><span>PRACTICE ROUND</span><b>ϟ</b><span>TALK LOUD</span><b>✦</b><span>BAM!</span><b>★</b><span>SPEAK UP</span><b>ϟ</b></div>
+      </div>
+    </div>
+
     <main>
       <section class="screen setup-screen active" id="setup" data-page="setup" aria-labelledby="setupTitle">
         <div class="setup-inner">
@@ -183,16 +192,6 @@
               <button type="button" class="choice-card" role="radio" aria-checked="false" data-difficulty="Medium">Medium</button>
               <button type="button" class="choice-card" role="radio" aria-checked="false" data-difficulty="Hard">Hard</button>
               <button type="button" class="choice-card" role="radio" aria-checked="false" data-difficulty="Expert">Expert</button>
-              <button type="button" class="choice-card" role="radio" aria-checked="false" data-difficulty="custom">Custom</button>
-            </div>
-            <div class="custom-row" id="customComplexityGroup" hidden>
-              <label for="customComplexity">Complexity</label>
-              <select id="customComplexity">
-                <option>Easy</option>
-                <option selected>Medium</option>
-                <option>Hard</option>
-                <option>Expert</option>
-              </select>
             </div>
           </fieldset>
 
@@ -214,17 +213,8 @@
               <button type="button" class="choice-card" role="radio" aria-checked="false" data-duration="60">60 sec</button>
               <button type="button" class="choice-card" role="radio" aria-checked="false" data-duration="120">120 sec</button>
             </div>
+            <button class="button primary start-btn" id="startSession" type="button" disabled>Start</button>
           </fieldset>
-
-          <div class="custom-row" id="customTimerGroup" hidden>
-            <label for="customSeconds">Custom timer</label>
-            <div class="custom-fields">
-              <input type="number" id="customSeconds" min="15" max="600" step="5" value="75" aria-label="Custom timer in seconds">
-              <span class="custom-unit">sec</span>
-            </div>
-          </div>
-
-          <button class="button primary start-btn" id="startSession" type="button" disabled>Start</button>
         </div>
 
         <select id="mode" class="sr-only" tabindex="-1" aria-hidden="true">
@@ -242,7 +232,6 @@
           <option>Medium</option>
           <option>Hard</option>
           <option>Expert</option>
-          <option value="custom">Custom…</option>
         </select>
         <select id="duration" class="sr-only" tabindex="-1" aria-hidden="true">
           <option value="" selected></option>
