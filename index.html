@@ -21,8 +21,8 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=local-fonts-20261028">
-    <link rel="stylesheet" href="./coach/coach.css?v=player-avatar-20261020">
+    <link rel="stylesheet" href="./styles.css?v=profile-doodle-20261028">
+    <link rel="stylesheet" href="./coach/coach.css?v=curated-doodles-20261028">
     <link rel="stylesheet" href="./comic-theme.css?v=local-fonts-20261028">
     <noscript>
       <style>
@@ -120,8 +120,8 @@
           <span class="theme-toggle-icon" aria-hidden="true">◐</span>
           <span class="theme-toggle-label">Dark</span>
         </button>
-        <a class="profile-nav-link" href="#profile" data-page-link="profile" aria-label="Open your player profile and avatar wardrobe" title="Your player profile and avatar wardrobe">
-          <span class="profile-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20v-1.2a6.5 6.5 0 0 1 13 0V20z"/></svg></span><span>Profile</span>
+        <a class="profile-nav-link" href="#profile" data-page-link="profile" aria-label="Open your profile" title="Your profile">
+          <span class="profile-nav-icon" id="profileNavAvatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20v-1.2a6.5 6.5 0 0 1 13 0V20z"/></svg></span><span>Profile</span>
         </a>
         <details class="menu-more">
           <summary class="icon-button" aria-label="Open menu">Menu</summary>
@@ -495,20 +495,21 @@
 
           <section class="coach-builder profile-card" id="mascotCustomizer" aria-labelledby="wardrobeTitle">
             <header class="coach-studio-header">
-              <div><p class="coach-eyebrow">Player avatar</p><h2 id="wardrobeTitle">Make your avatar yours</h2></div>
-              <div class="coach-save-actions"><span id="coachSaveStatus" role="status" aria-live="polite">All changes saved</span><button class="coach-save-button" type="button" data-action="save" disabled>Save avatar</button></div>
+              <div><p class="coach-eyebrow">Profile picture</p><h2 id="wardrobeTitle">Pick your doodle</h2></div>
+              <div class="coach-save-actions"><span>One face, picked by you.</span></div>
             </header>
             <div class="coach-studio-body">
-              <aside class="coach-preview-column" aria-label="Player avatar preview and actions">
+              <aside class="coach-preview-column" aria-label="Selected profile picture preview">
                 <div class="coach-preview-slab">
-                  <div class="coach-preview-topline"><span><i aria-hidden="true"></i> Live preview</span><span id="coachLookCount">0 extras</span></div>
-                  <div class="coach-avatar-stage"><div class="profile-mascot" id="profileMascot" role="img" aria-label="Your young woman player avatar"></div></div>
-                  <div class="profile-mascot-caption"><strong id="mascotName">Your player avatar</strong><span id="coachLookSummary">A look all your own</span></div>
+                  <div class="coach-preview-topline"><span><i aria-hidden="true"></i> Your profile picture</span><span id="coachSelectedNumber">Doodle 01</span></div>
+                  <div class="coach-avatar-stage"><div class="profile-mascot" id="profileMascot" role="img" aria-label="Selected Croodles Neutral profile picture"></div></div>
+                  <div class="profile-mascot-caption"><strong>Your selected doodle</strong><span>Change it any time from the full collection.</span></div>
                 </div>
               </aside>
               <div class="coach-workbench">
-                <nav class="coach-tabs" id="coachTabs" role="tablist" aria-label="Avatar categories"></nav>
-                <div class="coach-picker-panel"></div>
+                <div class="coach-gallery-heading"><h3>Make it yours</h3><p><strong>100</strong> hand-picked combinations</p></div>
+                <div class="doodle-collection-intro"><span class="doodle-collection-count">100</span><p>A balanced mix of every eye, mouth, and nose style. Browse the full set and choose the face that feels like you.</p><button class="coach-save-button" type="button" data-action="choose-doodle">Browse all doodles <span aria-hidden="true">→</span></button></div>
+                <p class="coach-art-credit">Croodles Neutral artwork by <a href="https://vjy.me/" target="_blank" rel="noreferrer">Vijay Verma</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>.</p>
               </div>
             </div>
           </section>
@@ -543,6 +544,16 @@
           </div>
           </section>
       </section>
+
+      <section class="screen doodle-picker-page" id="doodles" data-page="doodles" aria-labelledby="doodlePickerTitle">
+        <header class="doodle-picker-header">
+          <button class="coach-page-button" type="button" data-action="back-profile"><span aria-hidden="true">←</span> Back to profile</button>
+          <div class="doodle-picker-title"><p class="coach-eyebrow">Your profile picture</p><h1 id="doodlePickerTitle">Pick your doodle</h1><span>100 balanced faces · <span id="coachSaveStatus" role="status" aria-live="polite">Your saved doodle</span></span></div>
+          <button class="coach-save-button" type="button" data-action="save" disabled>Save doodle <span aria-hidden="true">✓</span></button>
+        </header>
+        <div class="doodle-picker-grid" id="coachDoodleGrid" role="radiogroup" aria-label="Choose one profile doodle"></div>
+        <footer class="doodle-picker-credit">Croodles Neutral by <a href="https://vjy.me/" target="_blank" rel="noreferrer">Vijay Verma</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></footer>
+      </section>
     </main>
 
     <label class="sr-only" for="transcript">Transcript</label>
@@ -552,8 +563,8 @@
     <div id="printSheet" aria-hidden="true"></div>
 
     <script src="./mode-shift.js?v=mode-story-20261024"></script>
-    <script src="./app.js?v=login-entry-intro-20261024"></script>
+    <script src="./app.js?v=curated-doodles-20261028"></script>
     <script src="./firebase-auth.bundle.js?v=firebase-standalone-20261020" onerror="window.dispatchEvent(new CustomEvent('speakup:firebase-load-error', { detail: { error: new Error('The local Firebase script could not be loaded.') } }))"></script>
-    <script src="./coach/coach.bundle.js?v=player-avatar-20261020" defer></script>
+    <script src="./coach/coach.bundle.js?v=curated-doodles-20261028" defer></script>
   </body>
 </html>

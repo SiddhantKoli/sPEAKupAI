@@ -266,12 +266,7 @@ const PROFILE_STORAGE_KEY = "speakup-profile-v1";
 const PROFILE_DEFAULTS = {
   name: "", handle: "", weeklyGoal: 3,
   mascot: {
-    version: 3, base: "woman", character: "woman", skin: "#edb98a",
-    hair: { style: "longButNotTooLong", color: "#5a4035" }, hairColor: "#5a4035",
-    glasses: { style: "square", color: "#141b2b" },
-    top: { style: "blazerAndShirt", color: "#0058be", pattern: "solid" }, shirt: "#0058be",
-    neck: { style: "scarf", color: "#168c91" }, accessory: "scarf",
-    hat: { style: "none", color: "#0058be" }, accessories: []
+    version: 5, style: "croodles-neutral", doodle: 0
   }
 };
 const MASCOT_DEFAULTS = PROFILE_DEFAULTS.mascot;
@@ -1766,14 +1761,10 @@ function renderProfile() {
   if (el.profileDisplayName) el.profileDisplayName.textContent = profile.name || "The next big voice";
   if (el.profileHandle) el.profileHandle.textContent = profile.handle ? `@${profile.handle}` : "A profile that stays on this device";
   const mascot = profile.mascot;
-  mascot.base = mascot.base === "grandpa" || mascot.base === "man" || mascot.character === "grandpa" || mascot.character === "man" ? "man" : mascot.base === "grandma" || !mascot.base ? "woman" : mascot.base;
-  mascot.character = mascot.base;
   if (el.profileMascot) {
     window.SpeakUpCoach?.setConfig(mascot);
-    const base = mascot.base === "man" ? "young man" : "young woman";
-    el.profileMascot.setAttribute("aria-label", `Your ${base} player avatar`);
+    el.profileMascot.setAttribute("aria-label", "Selected Croodles Neutral profile picture");
   }
-  if (el.mascotName) el.mascotName.textContent = `Your ${mascot.base === "man" ? "young man" : "young woman"} avatar`;
 
   const dayKeys = attemptDayKeys();
   const streak = streakStats(dayKeys);
@@ -2195,7 +2186,7 @@ function abortFlow() {
 function showPage(pageName) {
   const aliases = { practice: "setup", login: "auth", signup: "auth" };
   const requested = aliases[pageName] || pageName;
-  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewRoom", "results", "progress", "history", "profile", "auth"];
+  const known = ["setup", "tumbler", "prepare", "speaking", "processing", "interviewRoom", "results", "progress", "history", "profile", "doodles", "auth"];
   let safePage = known.includes(requested) ? requested : "setup";
   if (document.body.classList.contains("auth-gate") && safePage !== "auth") {
     history.replaceState(null, "", "#auth");
@@ -2205,6 +2196,7 @@ function showPage(pageName) {
   if (!FLOW_PAGES.has(safePage)) abortFlow();
 
   document.body.classList.toggle("flow-active", FLOW_PAGES.has(safePage));
+  document.body.classList.toggle("doodles-active", safePage === "doodles");
   el.setup?.classList.remove("is-leaving");
 
   el.pages.forEach((page) => {
@@ -2230,7 +2222,7 @@ function showPage(pageName) {
     history.replaceState(null, "", `#${hashPage}`);
   }
 
-  if (safePage === "results" || safePage === "history" || safePage === "progress" || safePage === "profile" || safePage === "auth") {
+  if (safePage === "results" || safePage === "history" || safePage === "progress" || safePage === "profile" || safePage === "doodles" || safePage === "auth") {
     window.scrollTo(0, 0);
   }
 }

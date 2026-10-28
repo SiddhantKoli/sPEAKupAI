@@ -3161,6 +3161,7 @@ body.shifting { overflow: hidden; }
 .profile-nav-link.active { background:#fff; }
 .profile-nav-icon { display:grid;width:30px;height:30px;place-items:center;border:1.5px solid #141b2b;border-radius:50%;background:#fff; }
 .profile-nav-icon svg { width:19px;height:19px;fill:#ffe600;stroke:#141b2b;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
+.profile-nav-icon img { display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;background:#fffdf7; }
 .account-entry-link { display:inline-flex;align-items:center;min-height:38px;padding:7px 12px;border:2px solid var(--ink);background:#ffe600;box-shadow:3px 3px 0 var(--ink);color:#141b2b;font-size:.76rem;font-weight:900;text-transform:uppercase;white-space:nowrap; }
 .account-entry-link:hover,.account-entry-link:focus-visible { outline:3px solid rgba(0,88,190,.25);outline-offset:2px;transform:translate(-1px,-1px); }
 .account-entry-link[hidden] { display:none; }
