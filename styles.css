@@ -1549,6 +1549,27 @@ html[data-theme="dark"] .report {
   line-height: 1.65;
 }
 
+.report .next-rep {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: var(--soft);
+  border-left: 8px solid var(--soft-2);
+}
+
+.next-rep-copy { min-width: 0; }
+.next-rep .kicker { margin: 0 0 5px; color: var(--blue); }
+.next-rep h2 { margin: 0 0 8px; }
+.next-rep-copy > p:not(.kicker) { max-width: 68ch; margin: 0; line-height: 1.55; }
+.next-rep .result-comparison { margin-top: 10px !important; color: var(--muted); font-size: .9rem; font-weight: 750; }
+.next-rep[hidden], .result-comparison[hidden] { display: none; }
+
+@media (max-width: 640px) {
+  .report .next-rep { align-items: stretch; flex-direction: column; gap: 16px; }
+  .next-rep .button { width: 100%; }
+}
+
 /* Action bar */
 .results-actions {
   align-items: stretch;

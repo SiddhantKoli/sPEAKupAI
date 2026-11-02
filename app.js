@@ -394,6 +394,10 @@ const el = {
   strengths: document.querySelector("#strengths"),
   improvements: document.querySelector("#improvements"),
   retryAdvice: document.querySelector("#retryAdvice"),
+  nextRep: document.querySelector("#nextRep"),
+  nextRepFocus: document.querySelector("#nextRepFocus"),
+  resultComparison: document.querySelector("#resultComparison"),
+  focusedRepButton: document.querySelector("#focusedRepButton"),
   resultKind: document.querySelector("#resultKind"),
   resultTopic: document.querySelector("#resultTopic"),
   resultDifficulty: document.querySelector("#resultDifficulty"),
@@ -2113,6 +2117,7 @@ function renderResult(result) {
   el.retryAdvice.textContent = hasSpeech
     ? result.advice
     : "I could not assess this attempt because the transcript contained no usable speech. Check your microphone and record a short test before trying again.";
+  renderNextRep(result, hasSpeech && hasScore);
   if (el.resultKind) el.resultKind.textContent = result.interview ? "Interview report" : challenge.label || "Report";
   if (el.resultTopic) el.resultTopic.textContent = result.interview?.config?.position || challenge.text || "—";
   if (el.resultDifficulty) el.resultDifficulty.textContent = challenge.difficulty || "";
@@ -2125,6 +2130,72 @@ function renderResult(result) {
   if (el.resultDate) el.resultDate.textContent = new Date(result.date).toLocaleString();
   if (el.resultTranscript) el.resultTranscript.textContent = result.transcript || "No transcript saved.";
   updateCoach(result);
+}
+
+function renderNextRep(result, hasAssessment) {
+  if (!el.nextRep || !el.nextRepFocus) return;
+  const weakest = hasAssessment
+    ? Object.entries(result.scores || {}).filter(([, score]) => Number.isFinite(score)).sort((a, b) => a[1] - b[1])[0]?.[0]
+    : null;
+  const focusCues = {
+    relevance: "Answer the exact question in your first sentence, then support that answer.",
+    coherence: "Connect each point with a clear reason so the listener can follow your thinking.",
+    vocabulary: "Replace one broad word with a precise word that says exactly what you mean.",
+    fluency: "Use a short pause between ideas instead of filling the gap with repeated words.",
+    structure: "Try a clear opening, one supporting example, and a one sentence close.",
+    argument: "State your position, give one reason, and address one reasonable counterpoint.",
+    content: "Add one concrete detail or example that makes the main point easier to trust."
+  };
+
+  if (!weakest) {
+    el.nextRepFocus.textContent = "This attempt could not be assessed. Check microphone permission and make a short test recording before relying on a score.";
+    el.focusedRepButton.textContent = "Try a 30-sec rep";
+    el.focusedRepButton.dataset.unassessed = "true";
+    if (el.resultComparison) {
+      el.resultComparison.hidden = true;
+      el.resultComparison.textContent = "";
+    }
+    return;
+  }
+
+  el.focusedRepButton.textContent = "Try a focused rep";
+  delete el.focusedRepButton.dataset.unassessed;
+  el.nextRepFocus.textContent = `Focus on ${labelFor(weakest)} (${Number(result.scores[weakest]).toFixed(1)}/10): ${focusCues[weakest] || "Make one specific improvement, then compare the next attempt."}`;
+
+  if (!el.resultComparison) return;
+  const previous = state.history.find((item) => item.id !== result.id
+    && Boolean(item.interview) === Boolean(result.interview)
+    && Number.isFinite(item.overall) && item.overall > 0);
+  if (!previous) {
+    el.resultComparison.textContent = "Baseline saved. Your next scored session will show what changed.";
+    el.resultComparison.hidden = false;
+    return;
+  }
+
+  const changes = [];
+  if (Number.isFinite(previous.overall)) changes.push(`score ${formatDelta(result.overall - previous.overall)}/10`);
+  const currentWpm = Number(result.metrics?.wpm);
+  const previousWpm = Number(previous.metrics?.wpm);
+  if (currentWpm > 0 && previousWpm > 0) changes.push(`pace ${formatDelta(currentWpm - previousWpm)} WPM`);
+  const currentFillers = fillerRate(result);
+  const previousFillers = fillerRate(previous);
+  if (currentFillers != null && previousFillers != null) changes.push(`filler rate ${formatDelta(currentFillers - previousFillers)} points`);
+  el.resultComparison.textContent = changes.length
+    ? `Since your previous scored session: ${changes.join(" · ")}.`
+    : "Previous scored session found; there are not enough matching metrics to compare yet.";
+  el.resultComparison.hidden = false;
+}
+
+function formatDelta(value) {
+  const rounded = round1(value);
+  return `${rounded > 0 ? "+" : ""}${rounded}`;
+}
+
+function fillerRate(result) {
+  const metrics = result.metrics || {};
+  if (Number.isFinite(metrics.fillerRate)) return metrics.fillerRate;
+  if (Number.isFinite(metrics.fillerCount) && Number(metrics.words) > 0) return round1((metrics.fillerCount / metrics.words) * 100);
+  return null;
 }
 
 function renderList(target, items) {
@@ -2601,8 +2672,8 @@ function clearHistory() {
   renderHistory();
 }
 
-async function focusedPrompt() {
-  const latest = state.history[0];
+async function focusedPrompt(targetResult = state.history[0]) {
+  const latest = targetResult;
   if (!latest || !Object.keys(latest.scores || {}).length) {
     setMode("topic");
     setDifficulty("Medium");
@@ -2611,7 +2682,7 @@ async function focusedPrompt() {
     const weakest = Object.entries(latest.scores).sort((a, b) => a[1] - b[1])[0][0];
     const focusMap = {
       coherence: ["topic", "Medium"],
-      structure: ["interview", "Medium"],
+      structure: ["topic", "Medium"],
       fluency: ["word", "Easy"],
       vocabulary: ["word", "Hard"],
       relevance: ["situation", "Medium"],
@@ -2624,7 +2695,12 @@ async function focusedPrompt() {
     if (!el.duration.value) setDuration("60");
   }
   generateChallenge(el.mode.value, effectiveDifficulty());
-  await primeMicrophone();
+  const micReady = await primeMicrophone();
+  if (!micReady) {
+    showPage("setup");
+    window.alert("Microphone access is needed to practice. Allow the mic, then press Start again.");
+    return;
+  }
   showPage("tumbler");
   runTumbler();
 }
@@ -2989,6 +3065,14 @@ el.exportPdf.addEventListener("click", () => {
 });
 el.practiceAgain.addEventListener("click", () => showPage("setup"));
 el.viewHistory.addEventListener("click", () => showPage("history"));
+el.focusedRepButton?.addEventListener("click", () => {
+  if (el.focusedRepButton.dataset.unassessed === "true") {
+    setDuration("30");
+    showPage("setup");
+    return;
+  }
+  focusedPrompt(state.activeResult || state.history[0]);
+});
 window.addEventListener("hashchange", showPageFromHash);
 
 applyTheme(getPreferredTheme());
