@@ -46,6 +46,18 @@
       "use": "@vercel/static"
     },
     {
+      "src": "assets/audio/soul-edge-yellow-sands.mp3",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/audio/super-mario-swimming-around.mp3",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/audio/road-rash-ii-main-theme.mp3",
+      "use": "@vercel/static"
+    },
+    {
       "src": "firebase-auth.bundle.js",
       "use": "@vercel/static"
     },

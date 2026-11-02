@@ -268,6 +268,52 @@ body.auth-gate .music-toggle { display: none !important; }
 .music-toggle[aria-pressed="false"] .music-icon-off { display: block; }
 @media (max-width: 520px) { .music-toggle { width: 46px; height: 46px; } }
 
+.music-track-menu {
+  position: fixed;
+  right: clamp(14px, 2vw, 24px);
+  bottom: clamp(72px, calc(2vw + 58px), 82px);
+  z-index: 54;
+  width: min(330px, calc(100vw - 28px));
+  max-height: calc(100dvh - 106px);
+  overflow: auto;
+  padding: 10px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  transform: rotate(-.35deg);
+}
+.music-track-menu[hidden] { display: none !important; }
+.music-menu-heading { display: grid; gap: 1px; padding: 5px 7px 9px; border-bottom: 2px solid var(--ink); }
+.music-menu-heading span { color: var(--blue); font-size: .62rem; font-weight: 900; letter-spacing: .12em; }
+.music-menu-heading strong { font-family: "Bebas Neue", sans-serif; font-size: 1.25rem; font-weight: 500; line-height: 1; text-transform: uppercase; }
+.music-track-option {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 7px;
+  padding: 8px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  cursor: pointer;
+}
+.music-track-option:hover,
+.music-track-option:focus-visible { outline: 0; background: var(--soft); transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+.music-track-option[aria-checked="true"] { background: var(--soft-2); }
+.music-track-number { display: grid; width: 27px; height: 27px; place-items: center; color: var(--paper); background: var(--ink); font-family: "Bebas Neue", sans-serif; font-size: .88rem; }
+.music-track-name { min-width: 0; font-size: .76rem; font-weight: 850; line-height: 1.1; }
+.music-track-name small { display: block; margin-top: 3px; color: var(--muted); font-size: .67rem; font-weight: 600; }
+.music-track-check { color: var(--green); font-size: 1rem; font-weight: 1000; opacity: 0; }
+.music-track-option[aria-checked="true"] .music-track-check { opacity: 1; }
+.music-menu-hint { margin: 10px 3px 0; color: var(--muted); font-size: .54rem; font-weight: 900; letter-spacing: .08em; text-align: center; }
+body.auth-check .music-track-menu,
+body.auth-gate .music-track-menu { display: none !important; }
+
 .top-nav {
   display: flex;
   gap: 6px;

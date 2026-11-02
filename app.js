@@ -453,8 +453,23 @@ const el = {
 };
 
 const MUSIC_ENABLED_KEY = "speakup-background-music-enabled-v1";
+const MUSIC_TRACK_KEY = "speakup-background-music-track-v1";
+const BACKGROUND_MUSIC_TRACKS = [
+  { id: "mahoujin", title: "Mahoujin GuruGuru 2", subtitle: "I Also Don’t Lose!", src: "./assets/audio/mahoujin-guru-guru-2.mp3" },
+  { id: "soul-edge", title: "Soul Edge", subtitle: "Yellow Sands · Hwang Sung", src: "./assets/audio/soul-edge-yellow-sands.mp3" },
+  { id: "super-mario", title: "Super Mario Bros.", subtitle: "Swimming Around", src: "./assets/audio/super-mario-swimming-around.mp3" },
+  { id: "road-rash", title: "Road Rash II", subtitle: "Main Theme", src: "./assets/audio/road-rash-ii-main-theme.mp3" }
+];
 function createBackgroundMusicController() {
-  const audio = new Audio("./assets/audio/mahoujin-guru-guru-2.mp3");
+  const trackMenu = document.querySelector("#musicTrackMenu");
+  const trackOptions = [...(trackMenu?.querySelectorAll("[data-music-track]") || [])];
+  const toggleButton = document.querySelector("#backgroundMusicToggle");
+  let selectedTrackId = BACKGROUND_MUSIC_TRACKS[0].id;
+  try {
+    const savedTrackId = localStorage.getItem(MUSIC_TRACK_KEY);
+    if (BACKGROUND_MUSIC_TRACKS.some((track) => track.id === savedTrackId)) selectedTrackId = savedTrackId;
+  } catch { /* Use the default soundtrack if storage is unavailable. */ }
+  const audio = new Audio(BACKGROUND_MUSIC_TRACKS.find((track) => track.id === selectedTrackId).src);
   audio.loop = true;
   audio.preload = "auto";
   audio.volume = 0;
@@ -470,6 +485,7 @@ function createBackgroundMusicController() {
   let primerActive = false;
   let fadeFrame = 0;
   let playPromise = null;
+  let pendingTrackSwitch = false;
   const blockers = new Set();
   try { enabled = localStorage.getItem(MUSIC_ENABLED_KEY) !== "false"; } catch { /* Use the default-on preference if storage is unavailable. */ }
 
@@ -508,7 +524,15 @@ function createBackgroundMusicController() {
       const label = enabled ? "Mute background music" : "Turn on background music";
       button.setAttribute("aria-pressed", String(enabled));
       button.setAttribute("aria-label", label);
-      button.title = label;
+      button.title = `${label} · Right-click or press and hold to choose a track`;
+    });
+  }
+
+  function syncTrackOptions() {
+    trackOptions.forEach((option) => {
+      const selected = option.dataset.musicTrack === selectedTrackId;
+      option.setAttribute("aria-checked", String(selected));
+      option.tabIndex = selected ? 0 : -1;
     });
   }
 
@@ -516,7 +540,16 @@ function createBackgroundMusicController() {
     return websiteActive && activePage === "setup" && enabled && blockers.size === 0;
   }
 
-  function fadeTo(target, pauseAtZero = false) {
+  function loadSelectedTrack() {
+    const track = BACKGROUND_MUSIC_TRACKS.find((item) => item.id === selectedTrackId) || BACKGROUND_MUSIC_TRACKS[0];
+    audio.pause();
+    audio.src = track.src;
+    audio.load();
+    pendingTrackSwitch = false;
+    reconcile();
+  }
+
+  function fadeTo(target, pauseAtZero = false, onSilent = null) {
     if (fadeFrame) cancelAnimationFrame(fadeFrame);
     fadeFrame = 0;
     const from = currentVolume;
@@ -532,12 +565,17 @@ function createBackgroundMusicController() {
       fadeFrame = 0;
       setVolume(target);
       if (pauseAtZero && target === 0 && !shouldPlay()) audio.pause();
+      if (target === 0 && currentVolume === 0 && onSilent) onSilent();
     };
     fadeFrame = requestAnimationFrame(step);
   }
 
   function reconcile() {
     syncButton();
+    if (pendingTrackSwitch) {
+      fadeTo(0, true, loadSelectedTrack);
+      return;
+    }
     if (!shouldPlay()) {
       if (!audio.paused) fadeTo(0, true);
       return;
@@ -557,6 +595,83 @@ function createBackgroundMusicController() {
     }).finally(() => { playPromise = null; });
   }
 
+  function selectTrack(trackId) {
+    if (!BACKGROUND_MUSIC_TRACKS.some((track) => track.id === trackId) || trackId === selectedTrackId) return;
+    selectedTrackId = trackId;
+    try { localStorage.setItem(MUSIC_TRACK_KEY, selectedTrackId); } catch { /* Keep the choice for this session. */ }
+    syncTrackOptions();
+    if (audio.paused || currentVolume <= 0.001) {
+      loadSelectedTrack();
+      return;
+    }
+    pendingTrackSwitch = true;
+    fadeTo(0, true, loadSelectedTrack);
+  }
+
+  function closeTrackMenu(restoreFocus = false) {
+    if (!trackMenu || trackMenu.hidden) return;
+    trackMenu.hidden = true;
+    toggleButton?.setAttribute("aria-expanded", "false");
+    if (restoreFocus) toggleButton?.focus();
+  }
+
+  function openTrackMenu() {
+    if (!trackMenu || !websiteActive || activePage !== "setup") return;
+    trackMenu.hidden = false;
+    toggleButton?.setAttribute("aria-expanded", "true");
+    syncTrackOptions();
+    trackOptions.find((option) => option.dataset.musicTrack === selectedTrackId)?.focus();
+  }
+
+  trackOptions.forEach((option) => option.addEventListener("click", () => {
+    selectTrack(option.dataset.musicTrack);
+    closeTrackMenu(true);
+  }));
+  trackMenu?.addEventListener("keydown", (event) => {
+    const currentIndex = trackOptions.indexOf(document.activeElement);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeTrackMenu(true);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home" ? 0
+      : event.key === "End" ? trackOptions.length - 1
+        : (currentIndex + (event.key === "ArrowDown" ? 1 : -1) + trackOptions.length) % trackOptions.length;
+    trackOptions[nextIndex]?.focus();
+  });
+  toggleButton?.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    openTrackMenu();
+  });
+  toggleButton?.addEventListener("keydown", (event) => {
+    if ((event.key === "F10" && event.shiftKey) || event.key === "ContextMenu") {
+      event.preventDefault();
+      openTrackMenu();
+    }
+  });
+  let longPressTimer = 0;
+  let openedByLongPress = false;
+  toggleButton?.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") return;
+    longPressTimer = window.setTimeout(() => {
+      openedByLongPress = true;
+      openTrackMenu();
+    }, 520);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((type) => toggleButton?.addEventListener(type, () => window.clearTimeout(longPressTimer)));
+  toggleButton?.addEventListener("click", (event) => {
+    if (!openedByLongPress) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openedByLongPress = false;
+  }, true);
+  document.addEventListener("pointerdown", (event) => {
+    if (!trackMenu?.hidden && !trackMenu.contains(event.target) && !toggleButton?.contains(event.target)) closeTrackMenu();
+  });
+  syncTrackOptions();
+
   buttons.forEach((button) => button.addEventListener("click", () => {
     // If autoplay was denied during login, use this explicit gesture to retry it.
     const retryBlockedPlayback = enabled && websiteActive && activePage === "setup" && blockers.size === 0 && audio.paused;
@@ -575,11 +690,13 @@ function createBackgroundMusicController() {
       websiteActive = false;
       primerActive = false;
       buttons.forEach((button) => { button.hidden = true; });
+      closeTrackMenu();
       reconcile();
     },
     setPage(page) {
       activePage = page;
       buttons.forEach((button) => { button.hidden = !websiteActive || page !== "setup"; });
+      if (page !== "setup") closeTrackMenu();
       reconcile();
     },
     primeFromGesture() {

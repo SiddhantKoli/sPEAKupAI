@@ -567,10 +567,26 @@
     <textarea id="transcript" class="sr-only" rows="4" tabindex="-1"></textarea>
     <button class="sr-only" id="evaluate" type="button">Evaluate Speech</button>
 
-    <button class="music-toggle" id="backgroundMusicToggle" type="button" aria-label="Mute background music" aria-pressed="true" title="Mute background music" hidden>
+    <button class="music-toggle" id="backgroundMusicToggle" type="button" aria-label="Mute background music" aria-pressed="true" aria-haspopup="menu" aria-expanded="false" title="Click to mute · Right-click to choose music" hidden>
       <svg class="music-icon music-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9a5 5 0 0 1 0 6M18.5 6.5a8.5 8.5 0 0 1 0 11"/></svg>
       <svg class="music-icon music-icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 6m0-6-5 6"/></svg>
     </button>
+    <div class="music-track-menu" id="musicTrackMenu" role="menu" aria-label="Choose background music" hidden>
+      <div class="music-menu-heading"><span>YOUR SOUNDTRACK</span><strong>Pick a track</strong></div>
+      <button class="music-track-option" type="button" role="menuitemradio" aria-checked="true" data-music-track="mahoujin">
+        <span class="music-track-number">01</span><span class="music-track-name">Mahoujin GuruGuru 2<small>I Also Don’t Lose!</small></span><span class="music-track-check" aria-hidden="true">✓</span>
+      </button>
+      <button class="music-track-option" type="button" role="menuitemradio" aria-checked="false" data-music-track="soul-edge">
+        <span class="music-track-number">02</span><span class="music-track-name">Soul Edge<small>Yellow Sands · Hwang Sung</small></span><span class="music-track-check" aria-hidden="true">✓</span>
+      </button>
+      <button class="music-track-option" type="button" role="menuitemradio" aria-checked="false" data-music-track="super-mario">
+        <span class="music-track-number">03</span><span class="music-track-name">Super Mario Bros.<small>Swimming Around</small></span><span class="music-track-check" aria-hidden="true">✓</span>
+      </button>
+      <button class="music-track-option" type="button" role="menuitemradio" aria-checked="false" data-music-track="road-rash">
+        <span class="music-track-number">04</span><span class="music-track-name">Road Rash II<small>Main Theme</small></span><span class="music-track-check" aria-hidden="true">✓</span>
+      </button>
+      <p class="music-menu-hint">RIGHT-CLICK OR PRESS AND HOLD TO CHANGE TRACKS</p>
+    </div>
 
     <div id="printSheet" aria-hidden="true"></div>
 
