@@ -557,7 +557,9 @@ function createBackgroundMusicController() {
   }
 
   buttons.forEach((button) => button.addEventListener("click", () => {
-    enabled = !enabled;
+    // If autoplay was denied during login, use this explicit gesture to retry it.
+    const retryBlockedPlayback = enabled && websiteActive && blockers.size === 0 && audio.paused;
+    if (!retryBlockedPlayback) enabled = !enabled;
     try { localStorage.setItem(MUSIC_ENABLED_KEY, String(enabled)); } catch { /* Keep the preference for this page session. */ }
     reconcile();
   }));
@@ -580,10 +582,9 @@ function createBackgroundMusicController() {
       primerActive = true;
       setVolume(0);
       playPromise = startPlayback();
-      playPromise?.then(() => {
-        if (shouldPlay()) fadeTo(targetVolume);
-        else if (!websiteActive) audio.pause();
-      }).catch(() => {}).finally(() => { playPromise = null; });
+      // Keep the track running silently while authentication resolves. Pausing here
+      // discards the click's autoplay permission before the user enters the site.
+      playPromise?.catch(() => {}).finally(() => { playPromise = null; });
     },
     cancelPrimer() {
       if (!primerActive || websiteActive) return;

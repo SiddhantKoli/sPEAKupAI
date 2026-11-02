@@ -42,6 +42,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "assets/audio/mahoujin-guru-guru-2.mp3",
+      "use": "@vercel/static"
+    },
+    {
       "src": "firebase-auth.bundle.js",
       "use": "@vercel/static"
     },
