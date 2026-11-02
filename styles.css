@@ -238,6 +238,36 @@ html[data-theme="dark"] .logo-on-dark {
   gap: 10px;
 }
 
+.music-toggle {
+  position: fixed;
+  right: clamp(14px, 2vw, 24px);
+  bottom: clamp(14px, 2vw, 24px);
+  z-index: 55;
+  display: grid;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  place-items: center;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.music-toggle[hidden],
+body.auth-check .music-toggle,
+body.auth-gate .music-toggle { display: none !important; }
+.music-toggle[aria-pressed="true"] { background: var(--soft-2); }
+.music-toggle:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--ink); }
+.music-toggle:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.music-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.music-icon-off { display: none; }
+.music-toggle[aria-pressed="false"] .music-icon-on { display: none; }
+.music-toggle[aria-pressed="false"] .music-icon-off { display: block; }
+@media (max-width: 520px) { .music-toggle { width: 46px; height: 46px; } }
+
 .top-nav {
   display: flex;
   gap: 6px;
@@ -1388,6 +1418,9 @@ html[data-theme="dark"] .report {
   border: 0;
   box-shadow: none;
 }
+.report .feedback-grid[hidden],
+.report .feedback-grid article[hidden] { display: none !important; }
+.report .feedback-grid.has-one-feedback-list article:not([hidden]) { grid-column: 1 / -1; }
 
 .report .feedback-grid article {
   padding: clamp(18px, 3vw, 28px);
@@ -1956,6 +1989,7 @@ main {
 
   .splash-screen,
   .topbar,
+  .music-toggle,
   .results-actions,
   .sr-only,
   #setup,

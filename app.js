@@ -452,6 +452,156 @@ const el = {
   viewHistory: document.querySelector("#viewHistory")
 };
 
+const MUSIC_ENABLED_KEY = "speakup-background-music-enabled-v1";
+function createBackgroundMusicController() {
+  const audio = new Audio("./assets/audio/mahoujin-guru-guru-2.mp3");
+  audio.loop = true;
+  audio.preload = "auto";
+  audio.volume = 0;
+  let audioContext = null;
+  let gainNode = null;
+  let currentVolume = 0;
+  const buttons = [...document.querySelectorAll("#backgroundMusicToggle")];
+  const targetVolume = 0.28;
+  const fadeDuration = 650;
+  let enabled = true;
+  let websiteActive = false;
+  let primerActive = false;
+  let fadeFrame = 0;
+  let playPromise = null;
+  const blockers = new Set();
+  try { enabled = localStorage.getItem(MUSIC_ENABLED_KEY) !== "false"; } catch { /* Use the default-on preference if storage is unavailable. */ }
+
+  function prepareAudioOutput() {
+    if (gainNode) return;
+    const AudioContextType = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextType) return;
+    try {
+      audioContext = new AudioContextType();
+      const source = audioContext.createMediaElementSource(audio);
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = currentVolume;
+      source.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      audio.volume = 1;
+    } catch {
+      audioContext = null;
+      gainNode = null;
+    }
+  }
+
+  function setVolume(value) {
+    currentVolume = Math.max(0, Math.min(1, value));
+    if (gainNode) gainNode.gain.value = currentVolume;
+    else audio.volume = currentVolume;
+  }
+
+  function startPlayback() {
+    prepareAudioOutput();
+    if (audioContext?.state === "suspended") audioContext.resume().catch(() => {});
+    return audio.play();
+  }
+
+  function syncButton() {
+    buttons.forEach((button) => {
+      const label = enabled ? "Mute background music" : "Turn on background music";
+      button.setAttribute("aria-pressed", String(enabled));
+      button.setAttribute("aria-label", label);
+      button.title = label;
+    });
+  }
+
+  function shouldPlay() {
+    return websiteActive && enabled && blockers.size === 0;
+  }
+
+  function fadeTo(target, pauseAtZero = false) {
+    if (fadeFrame) cancelAnimationFrame(fadeFrame);
+    fadeFrame = 0;
+    const from = currentVolume;
+    const start = performance.now();
+    const step = (now) => {
+      const progress = Math.min(1, (now - start) / fadeDuration);
+      const eased = progress * progress * (3 - 2 * progress);
+      setVolume(from + (target - from) * eased);
+      if (progress < 1) {
+        fadeFrame = requestAnimationFrame(step);
+        return;
+      }
+      fadeFrame = 0;
+      setVolume(target);
+      if (pauseAtZero && target === 0 && !shouldPlay()) audio.pause();
+    };
+    fadeFrame = requestAnimationFrame(step);
+  }
+
+  function reconcile() {
+    syncButton();
+    if (!shouldPlay()) {
+      if (!audio.paused) fadeTo(0, true);
+      return;
+    }
+    if (!audio.paused) {
+      fadeTo(targetVolume);
+      return;
+    }
+    if (playPromise) return;
+    setVolume(0);
+    playPromise = startPlayback();
+    playPromise?.then(() => {
+      if (shouldPlay()) fadeTo(targetVolume);
+      else fadeTo(0, true);
+    }).catch(() => {
+      // Browsers can still block playback; the visible toggle provides another user gesture.
+    }).finally(() => { playPromise = null; });
+  }
+
+  buttons.forEach((button) => button.addEventListener("click", () => {
+    enabled = !enabled;
+    try { localStorage.setItem(MUSIC_ENABLED_KEY, String(enabled)); } catch { /* Keep the preference for this page session. */ }
+    reconcile();
+  }));
+  syncButton();
+
+  return {
+    enter() {
+      websiteActive = true;
+      buttons.forEach((button) => { button.hidden = false; });
+      reconcile();
+    },
+    leave() {
+      websiteActive = false;
+      primerActive = false;
+      buttons.forEach((button) => { button.hidden = true; });
+      reconcile();
+    },
+    primeFromGesture() {
+      if (!enabled || websiteActive || primerActive) return;
+      primerActive = true;
+      setVolume(0);
+      playPromise = startPlayback();
+      playPromise?.then(() => {
+        if (shouldPlay()) fadeTo(targetVolume);
+        else if (!websiteActive) audio.pause();
+      }).catch(() => {}).finally(() => { playPromise = null; });
+    },
+    cancelPrimer() {
+      if (!primerActive || websiteActive) return;
+      primerActive = false;
+      fadeTo(0, true);
+    },
+    pauseFor(reason) {
+      blockers.add(reason);
+      reconcile();
+    },
+    resumeFrom(reason) {
+      blockers.delete(reason);
+      reconcile();
+    }
+  };
+}
+const backgroundMusic = createBackgroundMusicController();
+
 function pick(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -474,9 +624,26 @@ function syncStartButton() {
 
 function selectChoice(selector, attr, value) {
   document.querySelectorAll(selector).forEach((button) => {
-    button.setAttribute("aria-checked", String(button.getAttribute(attr) === String(value)));
+    const selected = button.getAttribute(attr) === String(value);
+    const wasSelected = button.getAttribute("aria-checked") === "true";
+    button.setAttribute("aria-checked", String(selected));
+
+    if (selected && !wasSelected && button.closest(".setup-inner")) {
+      button.classList.remove("choice-selection-bounce");
+      // Restart the short selection animation when the user picks a new option.
+      void button.offsetWidth;
+      button.classList.add("choice-selection-bounce");
+    }
   });
 }
+
+document.querySelectorAll(".setup-inner .choice-card, .setup-inner .choice-chip").forEach((button) => {
+  button.addEventListener("animationend", (event) => {
+    if (event.animationName === "choice-selection-bounce") {
+      button.classList.remove("choice-selection-bounce");
+    }
+  });
+});
 
 function setDifficulty(value) {
   el.difficulty.value = value;
@@ -604,6 +771,24 @@ function getSfxContext() {
 }
 
 // 1. Tumbler rolling sound: realistic ratchet/slot-wheel mechanical clicks that decelerate smoothly
+let tumblerSoftClipCurve = null;
+
+function getTumblerSoftClipCurve() {
+  if (tumblerSoftClipCurve) return tumblerSoftClipCurve;
+  const points = 2048;
+  const curve = new Float32Array(points);
+  for (let i = 0; i < points; i += 1) {
+    const x = (i * 2) / (points - 1) - 1;
+    const magnitude = Math.abs(x);
+    const softened = magnitude < 0.62
+      ? magnitude
+      : 0.62 + 0.38 * Math.tanh((magnitude - 0.62) / 0.2);
+    curve[i] = Math.sign(x) * softened;
+  }
+  tumblerSoftClipCurve = curve;
+  return curve;
+}
+
 function playTumblerRollSound(durationMs = 4000) {
   const ctx = getSfxContext();
   if (!ctx) return;
@@ -636,21 +821,26 @@ function scheduleMechanicalClick(ctx, when, progress, isFinal) {
     const filter = ctx.createBiquadFilter();
 
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(isFinal ? 980 : 1500 - progress * 550, when);
-    filter.Q.setValueAtTime(isFinal ? 5 : 2.8, when);
+    // Keep the click's brighter harmonics present so the roll reads clearly at normal volume.
+    filter.frequency.setValueAtTime(isFinal ? 720 : 1280 - progress * 430, when);
+    filter.Q.setValueAtTime(isFinal ? 4.2 : 3.1, when);
 
     osc.type = isFinal ? "triangle" : "sawtooth";
     osc.frequency.setValueAtTime(isFinal ? 180 : 420 - progress * 180, when);
     osc.frequency.exponentialRampToValueAtTime(70, when + (isFinal ? 0.06 : 0.024));
 
-    // Very loud but kept below clipping by fading quickly.
-    const vol = isFinal ? 1.5 : Math.max(0.16, 0.9 * (1 - progress * 0.5));
+    // Let the roll stay audible as it decelerates, with a stronger latch at the end.
+    const vol = isFinal ? 2 : Math.max(0.55, 1.55 * (1 - progress * 0.18));
     gain.gain.setValueAtTime(vol, when);
     gain.gain.exponentialRampToValueAtTime(0.001, when + (isFinal ? 0.085 : 0.026));
 
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    const softClip = ctx.createWaveShaper();
+    softClip.curve = getTumblerSoftClipCurve();
+    softClip.oversample = "4x";
+    gain.connect(softClip);
+    softClip.connect(ctx.destination);
 
     osc.start(when);
     osc.stop(when + (isFinal ? 0.06 : 0.025));
@@ -723,6 +913,124 @@ function playStartChime() {
       osc.start(now);
       osc.stop(now + decays[idx] + 0.05);
     });
+  } catch {}
+}
+
+// A short rising brass-like fanfare gives the main Start action a clear cue.
+function playGrandStartButtonSound() {
+  const ctx = getSfxContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+
+    // Soft low-end impact, kept short so the transition still feels immediate.
+    const thump = ctx.createOscillator();
+    const thumpGain = ctx.createGain();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime(118, now);
+    thump.frequency.exponentialRampToValueAtTime(54, now + 0.16);
+    thumpGain.gain.setValueAtTime(0.22, now);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    thump.connect(thumpGain);
+    thumpGain.connect(ctx.destination);
+    thump.start(now);
+    thump.stop(now + 0.19);
+
+    // Three quick ascending notes make it feel like a confident "let's go".
+    [392, 523.25, 783.99].forEach((frequency, index) => {
+      const onset = now + index * 0.075;
+      const oscillator = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(frequency, onset);
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(2200, onset);
+      gain.gain.setValueAtTime(0.001, onset);
+      gain.gain.linearRampToValueAtTime(index === 2 ? 0.16 : 0.12, onset + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, onset + (index === 2 ? 0.34 : 0.22));
+      oscillator.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(onset);
+      oscillator.stop(onset + (index === 2 ? 0.36 : 0.24));
+    });
+  } catch {}
+}
+
+// The hold-to-switch transition gets its own rising/falling, voice-like synth cue.
+function playModeShiftSweep(direction) {
+  const ctx = getSfxContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+    const rising = direction === "to-int";
+    const voice = ctx.createOscillator();
+    const formant = ctx.createBiquadFilter();
+    const voiceGain = ctx.createGain();
+    voice.type = "triangle";
+    voice.frequency.setValueAtTime(rising ? 145 : 560, now);
+    voice.frequency.exponentialRampToValueAtTime(rising ? 560 : 145, now + 0.9);
+    formant.type = "bandpass";
+    formant.frequency.setValueAtTime(rising ? 420 : 1080, now);
+    formant.frequency.exponentialRampToValueAtTime(rising ? 1080 : 420, now + 0.82);
+    formant.Q.setValueAtTime(1.1, now);
+    voiceGain.gain.setValueAtTime(0.001, now);
+    voiceGain.gain.linearRampToValueAtTime(0.58, now + 0.12);
+    voiceGain.gain.setValueAtTime(0.5, now + 0.55);
+    voiceGain.gain.exponentialRampToValueAtTime(0.001, now + 0.92);
+    voice.connect(formant);
+    formant.connect(voiceGain);
+    voiceGain.connect(ctx.destination);
+    voice.start(now);
+    voice.stop(now + 0.94);
+
+    const harmony = ctx.createOscillator();
+    const harmonyGain = ctx.createGain();
+    harmony.type = "sine";
+    harmony.frequency.setValueAtTime(rising ? 218 : 650, now);
+    harmony.frequency.exponentialRampToValueAtTime(rising ? 650 : 218, now + 0.86);
+    harmonyGain.gain.setValueAtTime(0.001, now);
+    harmonyGain.gain.linearRampToValueAtTime(0.17, now + 0.16);
+    harmonyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.88);
+    harmony.connect(harmonyGain);
+    harmonyGain.connect(ctx.destination);
+    harmony.start(now);
+    harmony.stop(now + 0.9);
+  } catch {}
+}
+
+function playModeShiftPop(landing = false) {
+  const ctx = getSfxContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+    const impact = ctx.createOscillator();
+    const impactGain = ctx.createGain();
+    impact.type = "sine";
+    impact.frequency.setValueAtTime(landing ? 250 : 175, now);
+    impact.frequency.exponentialRampToValueAtTime(landing ? 95 : 62, now + 0.13);
+    impactGain.gain.setValueAtTime(landing ? 0.32 : 0.68, now);
+    impactGain.gain.exponentialRampToValueAtTime(0.001, now + (landing ? 0.13 : 0.19));
+    impact.connect(impactGain);
+    impactGain.connect(ctx.destination);
+    impact.start(now);
+    impact.stop(now + 0.2);
+
+    const snap = ctx.createOscillator();
+    const snapGain = ctx.createGain();
+    snap.type = "triangle";
+    snap.frequency.setValueAtTime(landing ? 620 : 760, now);
+    snap.frequency.exponentialRampToValueAtTime(landing ? 280 : 240, now + 0.055);
+    snapGain.gain.setValueAtTime(landing ? 0.1 : 0.2, now);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    snap.connect(snapGain);
+    snapGain.connect(ctx.destination);
+    snap.start(now);
+    snap.stop(now + 0.08);
   } catch {}
 }
 
@@ -848,6 +1156,7 @@ function isHomeScreenActive() {
 // Tumbler & Prep Flow
 // ==========================================
 function runTumbler() {
+  backgroundMusic.pauseFor("tumbler");
   if (state.tumblerFrame) cancelAnimationFrame(state.tumblerFrame);
   const challenge = state.challenge;
   const pool = [...prompts[challenge.mode][effectiveDifficulty()]];
@@ -905,6 +1214,7 @@ function runTumbler() {
 
 function startPrepare() {
   showPage("prepare");
+  backgroundMusic.resumeFrom("tumbler");
   setTopicDisplays(state.challenge.text);
   let remaining = PREP_SECONDS;
   el.prepCount.textContent = String(remaining);
@@ -1486,9 +1796,10 @@ function labelForProvider(provider) {
 }
 
 function evaluateTranscript(transcript, duration, challenge) {
-  const words = transcript.match(wordRegex) || [];
-  const lower = transcript.toLowerCase();
-  const sentences = transcript.split(/[.!?]+/).map((item) => item.trim()).filter(Boolean);
+  const spokenText = removeTranscriptMarkers(transcript);
+  const words = spokenText.match(wordRegex) || [];
+  const lower = spokenText.toLowerCase();
+  const sentences = spokenText.split(/[.!?]+/).map((item) => item.trim()).filter(Boolean);
   const uniqueWords = new Set(words.map((word) => word.toLowerCase()));
   const fillerCount = fillerRegExps.reduce((count, regexp) => {
     const matches = lower.match(regexp);
@@ -1501,7 +1812,7 @@ function evaluateTranscript(transcript, duration, challenge) {
   const conclusionHit = conclusionRegex.test(transcript);
   const exampleHit = exampleRegex.test(transcript);
 
-  const content = clampScore(4.2 + words.length / 38 + (exampleHit ? 1.1 : 0));
+  const content = words.length < 4 ? 1 : clampScore(4.2 + words.length / 38 + (exampleHit ? 1.1 : 0));
   const relevance = clampScore(5 + Math.min(3, relevanceHits * 1.4) + (words.length > 35 ? 0.8 : 0));
   const coherence = clampScore(4.5 + transitionHits * 0.8 + (sentences.length >= 3 ? 0.8 : 0));
   const vocabulary = clampScore(4.6 + (uniqueWords.size / Math.max(words.length, 1)) * 4.2 + (words.length > 80 ? 0.5 : 0));
@@ -1512,6 +1823,13 @@ function evaluateTranscript(transcript, duration, challenge) {
     : null;
 
   const scores = { content, relevance, coherence, vocabulary, fluency, structure };
+  if (words.length < 4) {
+    scores.relevance = 1;
+    scores.coherence = 1;
+    scores.vocabulary = 1;
+    scores.fluency = 1;
+    scores.structure = 1;
+  }
   if (argument !== null) scores.argument = argument;
 
   const weights = {
@@ -1542,10 +1860,17 @@ function evaluateTranscript(transcript, duration, challenge) {
       fillerRate: metricWords ? round1((fillerCount / metricWords) * 100) : 0,
       sentenceCount: sentences.length
     },
-    strengths: buildStrengths(scores, { wpm, fillerCount, exampleHit, conclusionHit }),
-    improvements: buildImprovements(scores, { fillerCount, exampleHit, conclusionHit, transitionHits }),
-    advice: buildRetryAdvice(scores)
+    strengths: buildStrengths(scores, { wpm, fillerCount, exampleHit, conclusionHit, wordCount: words.length, sentenceCount: sentences.length, relevanceHits, transitionHits }),
+    improvements: buildImprovements(scores, { fillerCount, exampleHit, conclusionHit, transitionHits, wordCount: words.length, sentenceCount: sentences.length }),
+    advice: buildRetryAdvice(scores, words.length)
   };
+}
+
+function removeTranscriptMarkers(transcript) {
+  return String(transcript || "")
+    .replace(/<\s*(?:noise|silence|inaudible|unintelligible|no speech detected)[^>]*>/gi, " ")
+    .replace(/\[\s*(?:noise|silence|inaudible|unintelligible|background noise|no speech detected)[^\]]*\]/gi, " ")
+    .trim();
 }
 
 function clampScore(value) {
@@ -1570,27 +1895,31 @@ function sortedScoreKeys(scores, ascending = false) {
 
 function buildStrengths(scores, facts) {
   const items = [];
-  const [strongest] = sortedScoreKeys(scores);
-  items.push(`${labelFor(strongest)} is your strongest area in this attempt.`);
-  if (facts.fillerCount <= 4) items.push("You kept filler words under control.");
-  if (facts.exampleHit) items.push("You used an example, which made the answer more concrete.");
-  if (facts.wpm >= 100 && facts.wpm <= 160) items.push("Your speaking pace was in a comfortable range.");
+  if (facts.wordCount < 8) return items;
+  if (scores.relevance >= 7 && facts.relevanceHits >= 2) items.push("You addressed the prompt directly, using multiple relevant terms.");
+  if (facts.exampleHit && scores.content >= 6.5) items.push("Your example made the point more concrete.");
+  if (facts.sentenceCount >= 3 && facts.transitionHits >= 2 && scores.coherence >= 7) items.push("Your transitions made the answer easy to follow.");
+  if (facts.fillerCount <= 2 && facts.wordCount >= 30 && scores.fluency >= 7) items.push("You kept filler words low across a substantive answer.");
+  if (facts.wpm >= 100 && facts.wpm <= 160 && facts.wordCount >= 30 && scores.fluency >= 7.5) items.push("Your speaking pace stayed in a comfortable range.");
   return items.slice(0, 4);
 }
 
 function buildImprovements(scores, facts) {
+  if (facts.wordCount < 4) return ["There was no usable spoken answer to assess. Check the microphone and try again."];
   const items = [];
   const [weakest] = sortedScoreKeys(scores, true);
-  items.push(`Focus on ${labelFor(weakest).toLowerCase()} next; it was the lowest scoring area.`);
-  if (facts.fillerCount > 6) items.push(`You used ${facts.fillerCount} filler words. Pause silently instead of filling the gap.`);
-  if (!facts.exampleHit) items.push("Add one specific example to make the point easier to believe.");
-  if (!facts.conclusionHit) items.push("Close with a final sentence that restates your main point.");
-  if (facts.transitionHits < 2) items.push("Use signposts such as first, because, for example, and finally.");
+  if (scores[weakest] < 6) items.push(`Your ${labelFor(weakest).toLowerCase()} score was ${scores[weakest].toFixed(1)}/10. Address this area directly in your next attempt.`);
+  if (facts.fillerCount > 6) items.push(`You used ${facts.fillerCount} filler words. Replace them with silent pauses.`);
+  if (!facts.exampleHit && facts.wordCount >= 20 && scores.content < 7) items.push("Add one specific example that supports your main point.");
+  if (!facts.conclusionHit && facts.sentenceCount >= 3 && scores.structure < 7) items.push("End with a sentence that restates your main point.");
+  if (facts.transitionHits < 2 && facts.sentenceCount >= 3 && scores.coherence < 7) items.push("Use a clear signpost between your main point and supporting details.");
   return items.slice(0, 5);
 }
 
-function buildRetryAdvice(scores) {
+function buildRetryAdvice(scores, wordCount) {
+  if (wordCount < 4) return "I could not assess this attempt because the transcript contained no usable speech. Check your microphone and record a short test before trying again.";
   const [weakest] = sortedScoreKeys(scores, true);
+  if (scores[weakest] >= 7) return "No major weakness stood out in this attempt. Keep the same clear approach and try a more challenging prompt.";
   const structures = {
     content: "Use Point, Example, Impact. Make one idea specific instead of listing many ideas.",
     relevance: "Repeat the prompt in your first sentence, then connect every example back to it.",
@@ -1619,7 +1948,8 @@ function labelFor(key) {
 function renderResult(result) {
   state.activeResult = result;
   const challenge = result.challenge || {};
-  const hasScore = Number.isFinite(result.overall) && result.overall > 0;
+  const hasSpeech = hasUsableResultSpeech(result);
+  const hasScore = hasSpeech && Number.isFinite(result.overall) && result.overall > 0;
   el.overallScore.textContent = hasScore ? result.overall.toFixed(1) : "—";
   const wordsCount = result.metrics.words;
   const wpmValue = result.metrics.wpm;
@@ -1628,11 +1958,15 @@ function renderResult(result) {
   if (result.interview) {
     const evaluatedCount = result.interview.turns.filter((turn) => turn.evaluation).length;
     const skippedCount = result.interview.turns.filter((turn) => turn.skipped).length;
-    el.scoreSummary.textContent = evaluatedCount
+    el.scoreSummary.textContent = !hasSpeech
+      ? "No usable speech was transcribed. Check your microphone before trying again."
+      : evaluatedCount
       ? `${evaluatedCount} answers evaluated · ${skippedCount} skipped · ${labelForProvider(result.provider || "local")}.`
       : "No answers evaluated; no score was added to Progress.";
   } else {
-    el.scoreSummary.textContent = `${wordsCount} words, ${wpmValue} WPM, ${fillersValue} filler words.${source}`;
+    el.scoreSummary.textContent = hasSpeech
+      ? `${wordsCount} words, ${wpmValue} WPM, ${fillersValue} filler words.${source}`
+      : "No usable speech was transcribed. Check your microphone before trying again.";
   }
   el.rubricGrid.innerHTML = Object.entries(result.scores || {}).map(([key, value]) => `
     <div class="rubric-item">
@@ -1642,9 +1976,20 @@ function renderResult(result) {
     </div>
   `).join("");
   if (!hasScore) el.rubricGrid.innerHTML = "<p>No answer was evaluated, so no rubric score is available.</p>";
-  renderList(el.strengths, result.strengths);
-  renderList(el.improvements, result.improvements);
-  el.retryAdvice.textContent = result.advice;
+  const strengths = hasSpeech && Array.isArray(result.strengths) ? result.strengths.slice(0, 4) : [];
+  const improvements = hasSpeech
+    ? (Array.isArray(result.improvements) ? result.improvements.slice(0, 4) : [])
+    : ["There was no usable spoken answer to assess. Check the microphone and try again."];
+  renderList(el.strengths, strengths);
+  renderList(el.improvements, improvements);
+  const feedbackGrid = el.strengths.closest(".feedback-grid");
+  if (feedbackGrid) {
+    feedbackGrid.hidden = !strengths.length && !improvements.length;
+    feedbackGrid.classList.toggle("has-one-feedback-list", Boolean(strengths.length) !== Boolean(improvements.length));
+  }
+  el.retryAdvice.textContent = hasSpeech
+    ? result.advice
+    : "I could not assess this attempt because the transcript contained no usable speech. Check your microphone and record a short test before trying again.";
   if (el.resultKind) el.resultKind.textContent = result.interview ? "Interview report" : challenge.label || "Report";
   if (el.resultTopic) el.resultTopic.textContent = result.interview?.config?.position || challenge.text || "—";
   if (el.resultDifficulty) el.resultDifficulty.textContent = challenge.difficulty || "";
@@ -1661,7 +2006,21 @@ function renderResult(result) {
 
 function renderList(target, items) {
   if (!target) return;
-  target.innerHTML = (items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const entries = Array.isArray(items) ? items.map((item) => String(item).trim()).filter(Boolean) : [];
+  target.innerHTML = entries.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const article = target.closest("article");
+  if (article) article.hidden = entries.length === 0;
+}
+
+function hasUsableResultSpeech(result) {
+  if (result?.interview) {
+    return (result.interview.turns || []).some((turn) => {
+      if (turn.skipped) return false;
+      return (removeTranscriptMarkers(turn.transcript || turn.answer).match(wordRegex) || []).length >= 4;
+    });
+  }
+  if (!result?.transcript) return true;
+  return (removeTranscriptMarkers(result.transcript).match(wordRegex) || []).length >= 4;
 }
 
 function saveAttempt(result) {
@@ -1996,12 +2355,20 @@ async function printReport(result) {
 }
 
 function buildPrintMarkup(result) {
-  const rubric = Object.entries(result.scores).map(([key, value]) => `
+  const hasSpeech = hasUsableResultSpeech(result);
+  const strengths = hasSpeech && Array.isArray(result.strengths) ? result.strengths.slice(0, 4) : [];
+  const improvements = hasSpeech
+    ? (Array.isArray(result.improvements) ? result.improvements.slice(0, 4) : [])
+    : ["There was no usable spoken answer to assess. Check the microphone and try again."];
+  const advice = hasSpeech
+    ? result.advice
+    : "I could not assess this attempt because the transcript contained no usable speech. Check your microphone and record a short test before trying again.";
+  const rubric = hasSpeech ? Object.entries(result.scores || {}).map(([key, value]) => `
     <div class="print-rubric-item">
       <span>${labelFor(key)}</span>
       <strong>${value.toFixed(1)}</strong>
       <div class="print-meter"><div style="width: ${value * 10}%"></div></div>
-    </div>`).join("");
+    </div>`).join("") : "<p>No usable answer was available to score.</p>";
 
   const transcript = result.transcript
     ? `<section class="print-section"><h3>Transcript</h3><p class="print-transcript">${escapeHtml(result.transcript)}</p></section>`
@@ -2010,10 +2377,14 @@ function buildPrintMarkup(result) {
     ? "./speakup-logo.svg"
     : "./speakup-logo-on-light.svg";
   const title = result.interview?.config?.position || result.challenge.text;
-  const scoreText = Number.isFinite(result.overall) && result.overall > 0 ? `${result.overall.toFixed(1)}<small>/10</small>` : "Not scored";
+  const scoreText = hasSpeech && Number.isFinite(result.overall) && result.overall > 0 ? `${result.overall.toFixed(1)}<small>/10</small>` : "Not scored";
   const durationLabel = result.interview
     ? `${result.interview.config.durationMinutes} minute session · ${formatTime(result.challenge.duration || result.metrics.duration)} elapsed`
     : `${result.challenge.duration} seconds`;
+  const feedbackColumns = [
+    strengths.length ? `<div class="print-section"><h3>Strengths</h3><ul>${strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>` : "",
+    improvements.length ? `<div class="print-section"><h3>Improve Next</h3><ul>${improvements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>` : ""
+  ].filter(Boolean).join("");
 
   return `
     <header class="print-header">
@@ -2043,11 +2414,8 @@ function buildPrintMarkup(result) {
       </div>
     </section>
     <section class="print-section"><h3>Rubric</h3><div class="print-rubric">${rubric}</div></section>
-    <section class="print-columns">
-      <div class="print-section"><h3>Strengths</h3><ul>${result.strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
-      <div class="print-section"><h3>Improve Next</h3><ul>${result.improvements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
-    </section>
-    <section class="print-section print-advice"><h3>Coach's advice</h3><p>${escapeHtml(result.advice)}</p></section>
+    ${feedbackColumns ? `<section class="print-columns">${feedbackColumns}</section>` : ""}
+    <section class="print-section print-advice"><h3>Coach's advice</h3><p>${escapeHtml(advice)}</p></section>
     ${transcript}
     <footer class="print-footer">Generated with SpeakUp AI</footer>
   `;
@@ -2198,7 +2566,11 @@ function showPage(pageName) {
     safePage = "auth";
   }
 
-  if (!FLOW_PAGES.has(safePage)) abortFlow();
+  if (!FLOW_PAGES.has(safePage)) {
+    abortFlow();
+    backgroundMusic.resumeFrom("tumbler");
+    backgroundMusic.resumeFrom("interview");
+  }
 
   document.body.classList.toggle("flow-active", FLOW_PAGES.has(safePage));
   document.body.classList.toggle("doodles-active", safePage === "doodles");
@@ -2291,8 +2663,8 @@ let explicitLoginPending = false;
 let guestAccessGranted = false;
 let entryIntroStarted = false;
 try { localStorage.removeItem(GUEST_ACCESS_KEY); } catch { /* ignore unavailable storage */ }
-function markLoginAttempt() { explicitLoginPending = true; }
-function cancelLoginAttempt() { explicitLoginPending = false; }
+function markLoginAttempt() { explicitLoginPending = true; backgroundMusic.primeFromGesture(); }
+function cancelLoginAttempt() { explicitLoginPending = false; backgroundMusic.cancelPrimer(); }
 function playEntryIntro() {
   if (entryIntroStarted) return;
   const splash = document.getElementById("splashScreen");
@@ -2305,11 +2677,13 @@ function playEntryIntro() {
 function enterWebsite(page = "setup") {
   initialEntryResolved = true;
   document.body.classList.remove("auth-check", "auth-gate", "splash-active");
+  backgroundMusic.enter();
   showPage(page);
 }
 function enterAuthGate() {
   initialEntryResolved = true;
   entryIntroStarted = false;
+  backgroundMusic.leave();
   document.body.classList.remove("auth-check", "splash-active");
   document.body.classList.add("auth-gate");
   showPage("auth");
@@ -2317,6 +2691,7 @@ function enterAuthGate() {
 function completeExplicitLogin() {
   explicitLoginPending = false;
   if (document.body.classList.contains("auth-gate") || !initialEntryResolved) enterWebsite("setup");
+  else backgroundMusic.enter();
   playEntryIntro();
 }
 document.querySelector("#authGuestEntry")?.addEventListener("click", () => {
@@ -2594,7 +2969,7 @@ function initSplashScreen() {
 
   function startCharge() {
     if (shifting || charging || inInterview()) return;
-    if (isHomeScreenActive()) playButtonClickSound();
+    getSfxContext(); // Resume Web Audio during the user gesture so the later transition cue is ready.
     charging = true;
     startedAt = performance.now();
     btn.classList.add("charging");
@@ -2663,6 +3038,7 @@ function initSplashScreen() {
     if (shifting) return;
     shifting = true;
     direction = dir;
+    playModeShiftSweep(dir);
     document.body.classList.add("shifting");
 
     if (dir === "to-int") {
@@ -2685,8 +3061,12 @@ function initSplashScreen() {
     overlay.className = `mode-shift run ${dir}`;
 
     if (reducedMotion() || typeof window.buildShiftTimeline !== "function") {
+      playModeShiftPop();
       swap();
-      setTimeout(endShift, 80);
+      setTimeout(() => {
+        playModeShiftPop(true);
+        endShift();
+      }, 180);
       return;
     }
 
@@ -2698,20 +3078,30 @@ function initSplashScreen() {
       timeline.evaluate(0);
     } catch (error) {
       stopTimeline();
+      playModeShiftPop();
       swap();
-      setTimeout(endShift, 80);
+      setTimeout(() => {
+        playModeShiftPop(true);
+        endShift();
+      }, 180);
       return;
     }
 
     let firstFrame = null;
     let swapped = false;
+    let impactSoundPlayed = false;
     const step = (now) => {
       if (!timeline) return;
       if (firstFrame === null) firstFrame = now;
       const t = Math.max(0, (now - firstFrame) / 1000);
       timeline.evaluate(t);
+      if (!impactSoundPlayed && t >= timeline.impactAt) {
+        impactSoundPlayed = true;
+        playModeShiftPop();
+      }
       if (!swapped && t >= timeline.swapAt) {
         swapped = true;
+        playModeShiftPop(true);
         swap();
       }
       if (t >= timeline.endAt) {
@@ -2865,6 +3255,7 @@ async function startInterviewSession() {
 
   el.startInterview.disabled = true;
   el.startInterview.setAttribute("aria-busy", "true");
+  backgroundMusic.pauseFor("interview");
   showPage("interviewAnalyzing");
   let interviewCreated = false;
   try {
@@ -2908,6 +3299,7 @@ async function startInterviewSession() {
       showRoomError(error.message || "Could not read the selected resume.");
       showPage("interviewRoom");
     } else {
+      backgroundMusic.resumeFrom("interview");
       showPage("setup");
       fail("Could not read the selected resume. Choose it again and retry.");
     }
@@ -3358,6 +3750,7 @@ async function finishInterview(reason) {
   if (!interview.turns.length) {
     el.roomStateLabel.textContent = reason;
     el.roomInstruction.textContent = "No interview turns were completed, so nothing was added to History.";
+    backgroundMusic.resumeFrom("interview");
     return;
   }
   if (!interview.turns.some((turn) => turn.evaluation)) {
@@ -3381,6 +3774,7 @@ async function finishInterview(reason) {
     renderHistory();
     renderResult(result);
     showPage("results");
+    backgroundMusic.resumeFrom("interview");
     return;
   }
   const evaluated = interview.turns.filter((turn) => turn.evaluation);
@@ -3420,6 +3814,7 @@ async function finishInterview(reason) {
   }
   el.scoreSummary.textContent = `${evaluated.length} evaluated answers · ${interview.turns.length} turns · ${reason}`;
   showPage("results");
+  backgroundMusic.resumeFrom("interview");
 }
 
 function renderInterviewReportTurns(turns) {
@@ -3482,7 +3877,12 @@ window.addEventListener("beforeunload", (event) => {
       const btn = event.target.closest("button, [role='button'], .choice-card, .choice-chip, .resume-drop, .button, .icon-button");
       if (!btn) return;
 
-      if (btn.closest("#setup") || btn.id === "modeSwitch" || btn.id === "themeToggle") {
+      if (btn.id === "startSession") {
+        playGrandStartButtonSound();
+        return;
+      }
+
+      if (btn.closest("#setup") || btn.id === "themeToggle") {
         playButtonClickSound();
       }
     },

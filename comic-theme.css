@@ -239,6 +239,15 @@ body.flow-active main { padding: 0; }
   transform: translate(3px, 3px);
   box-shadow: 2px 2px 0 var(--ink);
 }
+.setup-inner .choice-selection-bounce {
+  animation: choice-selection-bounce 360ms cubic-bezier(.2,.8,.25,1) both;
+}
+@keyframes choice-selection-bounce {
+  0% { transform: translate(3px, 3px) scale(.94); box-shadow: 2px 2px 0 var(--ink); }
+  42% { transform: translate(3px, -4px) scale(1.045); box-shadow: 6px 9px 0 var(--ink); }
+  70% { transform: translate(3px, 4px) scale(.985); box-shadow: 1px 1px 0 var(--ink); }
+  100% { transform: translate(3px, 3px) scale(1); box-shadow: 2px 2px 0 var(--ink); }
+}
 .setup-inner #durationGroup .card-row { gap: 9px; }
 .setup-inner #durationGroup .choice-card { min-width: 86px; padding-inline: 10px; }
 .setup-inner .start-btn {
@@ -597,5 +606,6 @@ html[data-side="interview"][data-theme="dark"] .report .score-card strong { colo
   :is(.button, .choice-card, .choice-chip, .mode-switch, .top-nav a, .menu-panel a,
       .theme-toggle, .profile-nav-link, .auth-google-button, .auth-submit, .start-btn,
       .interview-start, .coach-action):active { transform: none; }
+  .setup-inner .choice-selection-bounce { animation: none; }
   .site-ticker-track { animation: none; }
 }

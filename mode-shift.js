@@ -315,6 +315,7 @@ function buildShiftTimeline(overlay, dir, origin) {
   return {
     swapAt,
     endAt,
+    impactAt: toInt ? 2.42 : 1.12,
     evaluate(t) {
       for (const st of states.values()) reset(st);
       for (const tr of tracks) {
