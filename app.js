@@ -466,6 +466,7 @@ function createBackgroundMusicController() {
   const fadeDuration = 650;
   let enabled = true;
   let websiteActive = false;
+  let activePage = "auth";
   let primerActive = false;
   let fadeFrame = 0;
   let playPromise = null;
@@ -512,7 +513,7 @@ function createBackgroundMusicController() {
   }
 
   function shouldPlay() {
-    return websiteActive && enabled && blockers.size === 0;
+    return websiteActive && activePage === "setup" && enabled && blockers.size === 0;
   }
 
   function fadeTo(target, pauseAtZero = false) {
@@ -558,7 +559,7 @@ function createBackgroundMusicController() {
 
   buttons.forEach((button) => button.addEventListener("click", () => {
     // If autoplay was denied during login, use this explicit gesture to retry it.
-    const retryBlockedPlayback = enabled && websiteActive && blockers.size === 0 && audio.paused;
+    const retryBlockedPlayback = enabled && websiteActive && activePage === "setup" && blockers.size === 0 && audio.paused;
     if (!retryBlockedPlayback) enabled = !enabled;
     try { localStorage.setItem(MUSIC_ENABLED_KEY, String(enabled)); } catch { /* Keep the preference for this page session. */ }
     reconcile();
@@ -568,13 +569,17 @@ function createBackgroundMusicController() {
   return {
     enter() {
       websiteActive = true;
-      buttons.forEach((button) => { button.hidden = false; });
       reconcile();
     },
     leave() {
       websiteActive = false;
       primerActive = false;
       buttons.forEach((button) => { button.hidden = true; });
+      reconcile();
+    },
+    setPage(page) {
+      activePage = page;
+      buttons.forEach((button) => { button.hidden = !websiteActive || page !== "setup"; });
       reconcile();
     },
     primeFromGesture() {
@@ -2566,6 +2571,7 @@ function showPage(pageName) {
     history.replaceState(null, "", "#auth");
     safePage = "auth";
   }
+  backgroundMusic.setPage(safePage);
 
   if (!FLOW_PAGES.has(safePage)) {
     abortFlow();
